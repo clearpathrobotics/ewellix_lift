@@ -1,0 +1,80 @@
+plate:
+  material:
+    name: "LightGrey"
+    color: "0.7 0.7 0.7 1.0"
+  mesh: tlt500/plate.stl
+  max:
+    x: 0.1000
+    y: 0.1100
+    z: 0.0150
+  min:
+    x: -0.1000
+    y: -0.1100
+    z: -0.0000
+  mass: 1.0
+
+base:
+  material:
+    name: "LightGrey"
+    color: "0.7 0.7 0.7 1.0"
+  mesh: tlt500/short/base.stl
+  max:
+    x: 0.0827
+    y: 0.0827
+    z: 0.4250
+  min:
+    x: -0.0827
+    y: -0.0827
+    z: 0.0150
+  mass: 10.0
+  offset: 0.015
+
+lower:
+  material:
+    name: "LightGrey"
+    color: "0.7 0.7 0.7 1.0"
+  mesh: tlt500/short/lower.stl
+  max:
+    x: 0.0742
+    y: 0.0742
+    z: 0.6850
+  min:
+    x: -0.0742
+    y: -0.0742
+    z: 0.2720
+  mass: 10.0
+  offset: 0.0
+  joint:
+    limit:
+      effort: 1000
+      lower: 0.0
+      upper: 0.25
+      velocity: 0.088
+    axis:
+      xyz: "0 0 1"
+
+upper:
+  material:
+    name: "LightGrey"
+    color: "0.7 0.7 0.7 1.0"
+  mesh: tlt500/short/upper.stl
+  max:
+    x: 0.0645
+    y: 0.0645
+    z: 0.9350
+  min:
+    x: -0.0645
+    y: -0.0645
+    z: 0.5150
+  mass: 10.0
+  offset: 0.0
+  joint:
+    limit:
+      effort: 1000
+      lower: 0.0
+      upper: 0.25
+      velocity: 0.088
+    axis:
+      xyz: "0 0 1"
+
+
