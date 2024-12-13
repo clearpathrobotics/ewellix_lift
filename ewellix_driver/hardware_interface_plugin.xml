@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<library path="ewellix_driver_plugin">
+    <class name="ewellix_driver/EwellixHardwareInterface"
+           type="ewellix_driver::EwellixHardwareInterface"
+           base_class_type="hardware_interface::SystemInterface">
+      <description>
+      ROS2 Control System Driver for the Ewellix telescopic lifts.
+      </description>
+    </class>
+  </library>
