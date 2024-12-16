@@ -48,6 +48,7 @@ EwellixHardwareInterface::on_init(const hardware_interface::HardwareInfo& system
   }
 
   info_ = system_info;
+  joint_count_ = 0;
   in_motion_ = false;
   activated_ = false;
 
@@ -91,7 +92,6 @@ EwellixHardwareInterface::on_init(const hardware_interface::HardwareInfo& system
                    joint.state_interfaces[2].name.c_str(), hardware_interface::HW_IF_EFFORT);
       return hardware_interface::CallbackReturn::ERROR;
     }
-
     encoder_positions_.push_back(0);
     encoder_commands_.push_back(0);
     speed_.push_back(0);
@@ -101,13 +101,14 @@ EwellixHardwareInterface::on_init(const hardware_interface::HardwareInfo& system
     old_positions_.push_back(0);
     velocities_.push_back(0);
     efforts_.push_back(0);
+    joint_count_++;
   }
-  state_.actual_position_a1 = 0;
-  state_.actual_position_a2 = 0;
-  state_.speed_a1 = 0;
-  state_.speed_a2 = 0;
-  state_.status1_a1 = 0;
-  state_.status1_a2 = 0;
+  state_.actual_positions = {0, 0, 0, 0, 0, 0};
+  state_.remote_positions = {0, 0, 0, 0, 0, 0};
+  state_.speeds = {0, 0, 0, 0, 0, 0};
+  state_.currents = {0, 0, 0, 0, 0, 0};
+  state_.status1 = {0, 0, 0, 0, 0, 0};
+  state_.errors = {0, 0, 0, 0, 0};
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -188,18 +189,25 @@ EwellixHardwareInterface::on_activate(const rclcpp_lifecycle::State& previous_st
   }
 
   // Cycle Communication to keep alive
-  if(!ewellix_serial_->cycle1(encoder_commands_[0], encoder_commands_[1], data_))
+  if(!ewellix_serial_->cycle2(encoder_commands_, data_))
   {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to cycle1 EwellixSerial port.");
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to cycle2 EwellixSerial port.");
     return hardware_interface::CallbackReturn::ERROR;
   }
-  state_ = ewellix_serial_->convertCycle1(data_);
-  // Convert meters to encoder ticks
-  encoder_commands_[0] = state_.actual_position_a1;
-  encoder_commands_[1] = state_.actual_position_a2;
-  position_commands_[0] = encoder_commands_[0] / conversion_;
-  position_commands_[1] = encoder_commands_[1] / conversion_;
+  state_ = ewellix_serial_->convertCycle2(data_);
+  // Initialize position command with current position.
+  for(int i = 0; i < joint_count_; i++)
+  {
+    encoder_commands_[i] = state_.actual_positions[i];
+    position_commands_[i] = encoder_commands_[i] / conversion_;
+  }
 
+  // Stop command to clear flags
+  if(!ewellix_serial_->stopAll())
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to send stop.");
+    return hardware_interface::CallbackReturn::ERROR;
+  }
   activated_ = true;
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -258,32 +266,32 @@ EwellixHardwareInterface::read(const rclcpp::Time& time, const rclcpp::Duration&
   // Cycle
   if (activated_)
   {
-    // Convert meters to encoder ticks
-    encoder_commands_[0] = position_commands_[0] * conversion_;
-    encoder_commands_[1] = position_commands_[1] * conversion_;
-    // Cycle Communication to keep alive
-    if(!ewellix_serial_->cycle1(encoder_commands_[0], encoder_commands_[1], data_))
+    for(int i = 0; i < joint_count_; i++)
     {
-      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to cycle1 EwellixSerial port.");
+      encoder_commands_[i] = position_commands_[i] * conversion_;
+    }
+    // Cycle Communication to keep alive
+    if(!ewellix_serial_->cycle2(encoder_commands_, data_))
+    {
+      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to cycle2 EwellixSerial port.");
       return hardware_interface::return_type::ERROR;
     }
-    state_ = ewellix_serial_->convertCycle1(data_);
+    state_ = ewellix_serial_->convertCycle2(data_);
   }
-  // Read
-  encoder_positions_[0] = state_.actual_position_a1;
-  encoder_positions_[1] = state_.actual_position_a2;
-  // Store previous positions
-  old_positions_[0] = positions_[0];
-  old_positions_[1] = positions_[1];
-  // Convert encoder ticks to meters
-  positions_[0] = encoder_positions_[0]/conversion_;
-  positions_[1] = encoder_positions_[1]/conversion_;
-  // Calculate velocity
-  velocities_[0] = (positions_[0] - old_positions_[0])/period.seconds();
-  velocities_[1] = (positions_[1] - old_positions_[1])/period.seconds();
-  // Calculate effort
-  efforts_[0] = state_.speed_a1/100 * rated_effort_;
-  efforts_[1] = state_.speed_a2/100 * rated_effort_;
+  for(int i = 0; i < joint_count_; i++)
+  {
+    // Read
+    encoder_positions_[i] = state_.actual_positions[i];
+    encoder_commands_[i] = state_.remote_positions[i];
+    // Store previous positions
+    old_positions_[i] = positions_[i];
+    // Convert encoder ticks to meters
+    positions_[i] = encoder_positions_[i] / conversion_;
+    // Calculate velocity
+    velocities_[i] = (positions_[i] - old_positions_[i]) / period.seconds();
+    // Calculate effort
+    efforts_[i] = state_.speeds[i] / 100 * rated_effort_;
+  }
   return hardware_interface::return_type::OK;
 }
 
@@ -293,9 +301,7 @@ EwellixHardwareInterface::write(const rclcpp::Time& time, const rclcpp::Duration
   if(activated_)
   {
     // Stop
-    if(in_motion_ && (
-      abs(encoder_positions_[0] - encoder_commands_[0]) <= (tolerance_* conversion_) ||
-      abs(encoder_positions_[1] - encoder_commands_[1]) <= (tolerance_* conversion_)))
+    if(in_motion_ && !outOfPosition())
     {
       RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Stop!");
       if(!ewellix_serial_->stopAll())
@@ -307,9 +313,7 @@ EwellixHardwareInterface::write(const rclcpp::Time& time, const rclcpp::Duration
     }
 
     // Execute Motion
-    if(!in_motion_ && (
-      abs(encoder_positions_[0] - encoder_commands_[0]) > (tolerance_* conversion_) ||
-      abs(encoder_positions_[1] - encoder_commands_[1]) > (tolerance_* conversion_)))
+    if(!in_motion_ && outOfPosition())
     {
       RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Moving!");
 
@@ -323,6 +327,18 @@ EwellixHardwareInterface::write(const rclcpp::Time& time, const rclcpp::Duration
   }
   return hardware_interface::return_type::OK;
 }
+
+bool
+EwellixHardwareInterface::outOfPosition()
+{
+  bool inBounds = true;
+  for(int i; i < joint_count_; i++)
+  {
+    inBounds &= (abs(encoder_positions_[i] - encoder_commands_[i]) <= (tolerance_* conversion_));
+  }
+  return !inBounds;
+}
+
 
 } // namespace ewellix_driver
 
