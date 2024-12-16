@@ -33,6 +33,9 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace ewellix_driver
 {
 
+/**
+ * EwellixSerial constructor with default values
+ */
 EwellixSerial::EwellixSerial():
   port_("/ttyUSB0"),
   baud_rate_(38400),
@@ -41,6 +44,9 @@ EwellixSerial::EwellixSerial():
 
 }
 
+/**
+ * EwellixSerial constructor with custom values
+ */
 EwellixSerial::EwellixSerial(std::string port, int baud_rate, int timeout):
   port_(port),
   baud_rate_(baud_rate),
@@ -49,9 +55,13 @@ EwellixSerial::EwellixSerial(std::string port, int baud_rate, int timeout):
 
 }
 
+/**
+ * EwellixSerial destructor. Deactivates connection and closes the serial port.
+ */
 EwellixSerial::~EwellixSerial()
 {
-
+  deactivate();
+  close();
 }
 
 
@@ -148,6 +158,17 @@ EwellixSerial::cycle()
   return call(COMMAND_CYCLIC, parameters, response, data);
 }
 
+/**
+ * Setup the CyclicObject1.
+ * A cyclic object is an array of 12, 16-bit entries. The first six shorts correspond
+ * to the parameters that the cyclic command will write to, while the later six
+ * correspond to the parameters that the cyclic command will retrieve.
+ *
+ * The first cyclic object is setup to write the remote actuator position and to
+ * retrieve the position, speed, and status of only the first two actuators.
+ *
+ * @return true if command is successful.
+ */
 bool
 EwellixSerial::setCycle1()
 {
@@ -178,12 +199,36 @@ EwellixSerial::setCycle1()
   return this->set(WRITEABLE_DATA_CYCLIC_OBJECT + CYCLIC_OBJECT_1, data);
 }
 
+/**
+ * Get the CyclicObject1.
+ *
+ * Retrieve the 16-bit array of length 12. Used to ensure that the CyclicObject1
+ * was set correctly.
+ *
+ * @param[out] data, returns the data retrieved. If successful will return with the
+ * 24 byte array corresponding to the CyclicObject.
+ *
+ * @return true if successfully retrieve data.
+ */
 bool
 EwellixSerial::getCycle1(std::vector<uint8_t> &data)
 {
   return this->get(WRITEABLE_DATA_CYCLIC_OBJECT + CYCLIC_OBJECT_1, data);
 }
 
+/**
+ * Cycle using the CylicObject1
+ *
+ * A cycle command must be sent at least every 500ms to maintain the remote
+ * communication. The CyclicObject allows data to be set and retrieve while
+ * simultaneously sending a cycle command.
+ *
+ * @param[in] a1_position: remote/desired position of the first actuator
+ * @param[in] a2_position: remote/desired position of the second actuators
+ * @param[out] data: byte array with the current position, speed, and status of the
+ * first two actuators.
+ * @return true if successfully sent cycle command and retrieved data.
+ */
 bool
 EwellixSerial::cycle1(int a1_position, int a2_position, std::vector<uint8_t> &data)
 {
@@ -204,7 +249,103 @@ EwellixSerial::cycle1(int a1_position, int a2_position, std::vector<uint8_t> &da
 }
 
 /**
- * Get Data
+ * Setup the CyclicObject2.
+ * A cyclic object is an array of 12, 16-bit entries. The first six shorts correspond
+ * to the parameters that the cyclic command will write to, while the later six
+ * correspond to the parameters that the cyclic command will retrieve.
+ *
+ * The second cyclic object is setup to write the remote actuator positions, and
+ * retrieve the current positions, remote positions, speeds, currents, status of all
+ * six possible actuators and retrieve the last five error codes.
+ *
+ * @return true if command is successful.
+ */
+bool
+EwellixSerial::setCycle2()
+{
+  std::vector<uint8_t> data;
+
+  // Write: Remote Position
+  this->appendShort(data, WRITEABLE_DATA_REMOTE_POSITION_ALL);
+  // Padding
+  this->appendShort(data, EMPTY_SHORT);
+  this->appendShort(data, EMPTY_SHORT);
+  this->appendShort(data, EMPTY_SHORT);
+  this->appendShort(data, EMPTY_SHORT);
+  this->appendShort(data, EMPTY_SHORT);
+  // Read: Actual Position
+  this->appendShort(data, DATA_ACTUAL_POSITION_ALL);
+  // Read: Remote Position
+  this->appendShort(data, WRITEABLE_DATA_REMOTE_POSITION_ALL);
+  // Read: Speed
+  this->appendShort(data, DATA_SPEED_ALL);
+  // Read: Current
+  this->appendShort(data, DATA_CURRENT_ALL);
+  // Read: Status1
+  this->appendShort(data, DATA_STATUS_1_ALL);
+  // Read: Error
+  this->appendShort(data, DATA_ERROR_CODE_HISTORY);
+
+  return this->set(WRITEABLE_DATA_CYCLIC_OBJECT + CYCLIC_OBJECT_2, data);
+}
+
+/**
+ * Get the CyclicObject2.
+ *
+ * Retrieve the 16-bit array of length 12. Used to ensure that the CyclicObject1
+ * was set correctly.
+ *
+ * @param[out] data, returns the data retrieved. If successful will return with the
+ * 24 byte array corresponding to the CyclicObject.
+ *
+ * @return true if successfully retrieve data.
+ */
+bool
+EwellixSerial::getCycle2(std::vector<uint8_t> &data)
+{
+  return this->get(WRITEABLE_DATA_CYCLIC_OBJECT + CYCLIC_OBJECT_2, data);
+}
+
+/**
+ * Cycle using the CylicObject2
+ *
+ * A cycle command must be sent at least every 500ms to maintain the remote
+ * communication. The CyclicObject allows data to be set and retrieve while
+ * simultaneously sending a cycle command.
+ *
+ * @param[in] positions: remote/desired positions of actuators. Can pass an array
+ * of at most size 6 corresponding to the maximum number of actuators.
+ * @param[out] data: byte array with the current positions, remote positions, speeds, currents, and status of all actuators. And, the error code history.
+ * @return true if successfully sent cycle command and retrieved data.
+ */
+bool
+EwellixSerial::cycle2(const std::vector<int> positions, std::vector<uint8_t> &data)
+{
+  data.clear();
+  std::vector<uint8_t> parameters;
+  std::vector<uint8_t> response;
+
+  std::vector<uint8_t> write_data = {CYCLIC_OBJECT_2};
+  this->appendIntegerVector(write_data, positions);
+  for(int i = int(positions.size()); i < 6; i++)
+  {
+    this->appendInteger(write_data, 0);
+  }
+
+  uint16_t size = write_data.size();
+
+  this->appendShort(parameters, size);
+  this->appendVector(parameters, write_data);
+
+  return call(COMMAND_CYCLIC, parameters, response, data);
+}
+
+/**
+ * Get Data command.
+ *
+ * @param[in] field. Parameter field of data to retrieve.
+ * @param[out] data. Byte array with data corresponding to parameter field.
+ * @return true if command successfully retrieved data.
  */
 bool
 EwellixSerial::get(uint16_t field, std::vector<uint8_t> &data)
@@ -219,7 +360,11 @@ EwellixSerial::get(uint16_t field, std::vector<uint8_t> &data)
 }
 
 /**
- * Set Data
+ * Set Data command.
+ *
+ * @param[in] field. Parameter field of data to set.
+ * @param[in] data. Byte array with data to write to parameter field.
+ * @return true if command successfully set data.
  */
 bool
 EwellixSerial::set(uint16_t field, const std::vector<uint8_t> data)
@@ -239,15 +384,19 @@ EwellixSerial::set(uint16_t field, const std::vector<uint8_t> data)
 
 /**
  * Execute command
+ *
+ * @param[in] Actuator index.
+ * @param[in] Function to execute.
+ * @return true if execute command sent successfully.
  */
 bool
-EwellixSerial::execute(uint8_t motor, uint8_t function)
+EwellixSerial::execute(uint8_t actuator, uint8_t function)
 {
   std::vector<uint8_t> empty;
   std::vector<uint8_t> parameters;
   std::vector<uint8_t> response;
 
-  parameters.push_back(motor);
+  parameters.push_back(actuator);
   parameters.push_back(function);
   parameters.push_back(EMPTY_BYTE);
 
@@ -255,16 +404,20 @@ EwellixSerial::execute(uint8_t motor, uint8_t function)
 }
 
 /**
- * Stop command
+ * Stop command.
+ *
+ * @param[in] Actuator index.
+ * @param[in] Stop mode.
+ * @return true if stop command sent successfully.
  */
 bool
-EwellixSerial::stop(uint8_t motor, uint8_t mode)
+EwellixSerial::stop(uint8_t actuator, uint8_t mode)
 {
   std::vector<uint8_t> empty;
   std::vector<uint8_t> parameters;
   std::vector<uint8_t> response;
 
-  parameters.push_back(motor);
+  parameters.push_back(actuator);
   parameters.push_back(mode);
 
   return call(COMMAND_STOP, parameters, response, empty);
@@ -273,6 +426,7 @@ EwellixSerial::stop(uint8_t motor, uint8_t mode)
 /**
  * Check Response Checksum.
  *
+ * @param[in] response. Byte array of entire response.
  * @return true if computed checksum matches response checksum.
  */
 bool
@@ -295,6 +449,7 @@ EwellixSerial::checkResponseChecksum(const std::vector<uint8_t> response)
  * Compute Checksum
  * Cyclic redundancy check.
  *
+ * @param[in] message. Byte array of entire message to be sent.
  * @return checksum
  */
 uint16_t
@@ -312,6 +467,7 @@ EwellixSerial::calculateChecksum(const std::vector<uint8_t> message)
 /**
  * Send message
  *
+ * @param[in] message. Byte array of entire message to be sent with checksum.
  * @return true if message was sent successfully.
  */
 bool
@@ -340,8 +496,13 @@ EwellixSerial::send(const std::vector<uint8_t> message)
 }
 
 /**
- * Receive message
+ * Receive message.
+ * Parse one byte at a time and ensure that response matches the protocol.
  *
+ * @param[in] message. Byte array that was sent.
+ * @param[out] response. Byte array to populate with received bytes.
+ * @param[out] data. Byte array to populate with data retrieved. Only used by
+ * certain commands.
  * @return true if message received without errors.
  */
 bool
@@ -500,7 +661,10 @@ EwellixSerial::receive(const std::vector<uint8_t> message, std::vector<uint8_t> 
 }
 
 /**
- * Append short to byte vector
+ * Utility: append short to byte vector with LSB first.
+ *
+ * @param[out] message to append data to.
+ * @param[in] 16-bit data to append to message.
  */
 void
 EwellixSerial::appendShort(std::vector<uint8_t> &message, uint16_t data)
@@ -510,7 +674,10 @@ EwellixSerial::appendShort(std::vector<uint8_t> &message, uint16_t data)
 }
 
 /**
- * Append integer to byte vector
+ * Utility: append integer to byte vector with LSB first.
+ *
+ * @param[out] message to append data to.
+ * @param[in] 32-bit data to append to message.
  */
 void
 EwellixSerial::appendInteger(std::vector<uint8_t> &message, int data)
@@ -522,7 +689,10 @@ EwellixSerial::appendInteger(std::vector<uint8_t> &message, int data)
 }
 
 /**
- * Append vector to byte vector
+ * Utility: append byte vector to byte vector.
+ *
+ * @param[out] message to append data to.
+ * @param[in] byte vector to append to message.
  */
 void
 EwellixSerial::appendVector(std::vector<uint8_t> &message, const std::vector<uint8_t> v)
@@ -531,7 +701,27 @@ EwellixSerial::appendVector(std::vector<uint8_t> &message, const std::vector<uin
 }
 
 /**
+ * Utility: append vector of integers to byte vector.
+ *
+ * @param[out] message to append data to.
+ * @param[in] integer vector to append to message with LSB first.
+ */
+void
+EwellixSerial::appendIntegerVector(std::vector<uint8_t> &message, const std::vector<int> v)
+{
+  for(auto integer : v)
+  {
+    appendInteger(message, integer);
+  }
+}
+
+/**
  * Create message
+ *
+ * @param[in] command. Type of action to command.
+ * @param[in] parameters. Parameters associated with action.
+ * @param[out] message. Complete message with CRC checksum.
+ * @return true if parameters match command and message was generated successfully.
  */
 bool
 EwellixSerial::generateMessage(uint8_t command, const std::vector<uint8_t> parameters, std::vector<uint8_t> &message)
@@ -663,7 +853,14 @@ EwellixSerial::generateMessage(uint8_t command, const std::vector<uint8_t> param
 }
 
 /**
- * Call, send message and receive response
+ * Call.
+ * Generate and send message from given action and parameters.
+ * Receive response.
+ *
+ * @param[in] command. Action type.
+ * @param[in] parameters. Parameters associated with action.
+ * @param[out] response. Byte array of entire received message.
+ * @param[out] data. Byte array of data. Only used for actions that retrieve data.
  */
 bool
 EwellixSerial::call(uint8_t command, const std::vector<uint8_t>parameters, std::vector<uint8_t> &response, std::vector<uint8_t> &data)
@@ -689,7 +886,10 @@ EwellixSerial::call(uint8_t command, const std::vector<uint8_t>parameters, std::
 }
 
 /**
- * Convert Data from vector to short
+ * Utility: convert data from vector to short
+ *
+ * @param[in] data. Byte vector of data to cast to 16-bit.
+ * @return 16-bit, unsigned short.
  */
 uint16_t
 EwellixSerial::convertShort(const std::vector<uint8_t> data)
@@ -698,7 +898,10 @@ EwellixSerial::convertShort(const std::vector<uint8_t> data)
 }
 
 /**
- * Convert Data from vector to integer
+ * Utility: convert data from vector to integer
+ *
+ * @param[in] data. Byte vector of data to cast to 32-bit
+ * @return 32-bit, unsigned integer.
  */
 uint32_t
 EwellixSerial::convertInteger(const std::vector<uint8_t> data)
@@ -707,7 +910,10 @@ EwellixSerial::convertInteger(const std::vector<uint8_t> data)
 }
 
 /**
- * Convert data from vector to float
+ * Utility: convert data from vector to float
+ *
+ * @param[in] data. Byte vector of data to cast to 32-bit float.
+ * @return 32-bit, float.
  */
 float
 EwellixSerial::convertFloat(const std::vector<uint8_t> data)
@@ -716,7 +922,10 @@ EwellixSerial::convertFloat(const std::vector<uint8_t> data)
 }
 
 /**
- * Convert data from Cycle1 data to struct DataCycle1
+ * Utility: convert data from Cycle1 data to struct DataCycle1
+ *
+ * @param[in] data. Byte vector of data to cast to DataCycle1 struct.
+ * @return DataCycle1 struct.
  */
 EwellixSerial::DataCycle1
 EwellixSerial::convertCycle1(const std::vector<uint8_t> data)
@@ -732,7 +941,41 @@ EwellixSerial::convertCycle1(const std::vector<uint8_t> data)
 }
 
 /**
- * Convert data from Status1 byte to struct Status1
+ * Utility: convert data from Cycle2 data to struct DataCycle2
+ *
+ * @param[in] data. Byte vector of data to cast to DataCycle2 struct.
+ * @return DataCycle2 struct.
+ */
+EwellixSerial::DataCycle2
+EwellixSerial::convertCycle2(const std::vector<uint8_t> data)
+{
+  DataCycle2 converted;
+  for(int i = 0; i < 6; i++)
+  {
+    converted.actual_positions.push_back(
+      *reinterpret_cast<const int *>(&data[0 + i*sizeof(int)]));
+    converted.remote_positions.push_back(
+      *reinterpret_cast<const int *>(&data[24 + i*sizeof(int)]));
+    converted.speeds.push_back(
+      *reinterpret_cast<const uint16_t *>(&data[48 + i*sizeof(uint16_t)]));
+    converted.currents.push_back(
+      *reinterpret_cast<const uint16_t *>(&data[60 + i*sizeof(uint16_t)]));
+    converted.status1.push_back(
+      *reinterpret_cast<const uint8_t *>(&data[72 + i*sizeof(uint8_t)]));
+  }
+  for(int i = 80; i < int(data.size()); i += sizeof(int))
+  {
+    converted.errors.push_back(
+      *reinterpret_cast<const int *>(&data[i]));
+  }
+  return converted;
+}
+
+/**
+ * Utility: convert data from Status1 byte to struct Status1
+ *
+ * @param[in] data. Byte vector of data to cast to Status1 struct.
+ * @return Status1 struct
  */
 EwellixSerial::Status1
 EwellixSerial::convertStatus1(const std::vector<uint8_t> data)
