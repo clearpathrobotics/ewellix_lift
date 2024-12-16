@@ -194,7 +194,7 @@
       <child link="${tf_prefix}mount"/>
       <parent link="${tf_prefix}upper_link"/>
       <origin
-        xyz="0.0 0.0 ${fabs(parameters.upper.max.x - parameters.upper.min.x)}"
+        xyz="0.0 0.0 ${fabs(parameters.upper.max.z - parameters.upper.min.z)}"
         rpy="0.0 0.0 0.0"/>
     </joint>
 
