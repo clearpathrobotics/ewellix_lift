@@ -65,7 +65,7 @@ upper:
     y: -0.0645
     z: 0.5151
   mass: 10.0
-  offset: 0.0
+  offset: 0.0225
   joint:
     limit:
       effort: 2000.0
