@@ -174,22 +174,31 @@
  */
 #define DATA_FIRMWARE                   0x0001
 #define DATA_CONFIGURATION              0x0002
+#define DATA_ACTUAL_POSITION_ALL        0x0010
 #define DATA_ACTUAL_POSITION_ACTUATOR   0x0011
 #define DATA_ACTUAL_STATE_BINARY        0x0020
 #define DATA_ACTUAL_STATE_ANALOG        0x0030
 #define DATA_ACTUAL_STATE_KEYS          0x0040
+#define DATA_NUMBER_CYCLE_IN_ALL        0x0060
 #define DATA_NUMBER_CYCLE_IN_ACTUATOR   0x0061
+#define DATA_NUMBER_CYCLE_OUT_ALL       0x0070
 #define DATA_NUMBER_CYCLE_OUT_ACTUATOR  0x0071
+#define DATA_NUMBER_ERROR_ALL           0x0080
 #define DATA_NUMBER_ERROR_ACTUATOR      0x0081
 #define DATA_NUMBER_TOTAL_OVER_CURRENT  0x008F
+#define DATA_CUMULATED_STROKE           0x0090
 #define DATA_CUMULATED_STROKE_ACTUATOR  0x0091
+#define DATA_CURRENT_ALL                0x00A0
 #define DATA_CURRENT_ACTUATOR           0x00A1
+#define DATA_MAX_CURRENT_ALL            0x00B0
 #define DATA_MAX_CURRENT_ACTUATOR       0x00B1
 #define DATA_MAX_TOTAL_CURRENT          0x00BF
 #define DATA_MAX_TEMP_RECTIFIER         0x00C0
 #define DATA_OVER_TEMP_RECTIFIER        0x00C1
 #define DATA_ERROR_CODE_HISTORY         0x00D0 // to 0X00D5
+#define DATA_STATUS_2_ALL               0x00E0
 #define DATA_STATUS_2_ACTUATOR          0x00E1
+#define DATA_SPEED_ALL                  0x00F0
 #define DATA_SPEED_ACTUATOR             0x00F1
 #define DATA_BATTERY_MAINS              0x0100
 #define DATA_BINARY_OUTPUT_STATUS       0x0110
@@ -201,10 +210,13 @@
 #define DATA_BATTERY_VOLTAGE            0x0164
 #define DATA_LOCKING_BOX_DETECTED       0x0165
 #define DATA_USER                       0x0166
+#define DATA_STATUS_1_ALL               0x0170
 #define DATA_STATUS_1_ACTUATOR          0x0171
 
+#define DATA_CONVERSION_FACTOR_ALL      0x1010
 #define DATA_CONVERSION_FACTOR_ACTUATOR 0x1011
 
+#define DATA_USER_POSITION_ALL          0x2000
 #define DATA_USER_POSITION_ACTUATOR     0x2001
 
 /**
@@ -213,7 +225,9 @@
  * Initialized after reset with preset values.
  */
 #define WRITEABLE_DATA_CYCLIC_OBJECT              0x3001
-#define WRITEABLE_DATA_REMOTE_SPEED_FUNCTION      0x3010 // to 301A, F1-10
+#define WRITEABLE_DATA_REMOTE_SPEED_ALL           0x3010
+#define WRITEABLE_DATA_REMOTE_SPEED_FUNCTION      0x301A // to 301A, F1-10
+#define WRITEABLE_DATA_REMOTE_POSITION_ALL        0x3020
 #define WRITEABLE_DATA_REMOTE_POSITION_ACTUATOR   0x3021
 #define EMPTY_SHORT                               0xFFFF
 #define EMPTY_BYTE                                0xFF

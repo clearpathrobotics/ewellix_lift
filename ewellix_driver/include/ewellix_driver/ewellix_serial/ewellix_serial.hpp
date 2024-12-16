@@ -57,6 +57,16 @@ class EwellixSerial
       unsigned char status1_a2;
     };
 
+    struct DataCycle2
+    {
+      std::vector<int> actual_positions;
+      std::vector<int> remote_positions;
+      std::vector<uint16_t> speeds;
+      std::vector<uint16_t> currents;
+      std::vector<uint8_t> status1;
+      std::vector<uint32_t> errors;
+    };
+
     struct Status1
     {
       bool available;
@@ -90,13 +100,18 @@ class EwellixSerial
     bool cycle();
     bool get(uint16_t field, std::vector<uint8_t> &data);
     bool set(uint16_t field, const std::vector<uint8_t> data);
-    bool execute(uint8_t motor, uint8_t function);
-    bool stop(uint8_t motor, uint8_t mode);
+    bool execute(uint8_t actuator, uint8_t function);
+    bool stop(uint8_t actuator, uint8_t mode);
 
     bool cycle1(int a1_position, int a2_position, std::vector<uint8_t> &data);
     bool setCycle1();
     bool getCycle1(std::vector<uint8_t> &data);
     DataCycle1 convertCycle1(const std::vector<uint8_t> data);
+
+    bool cycle2(const std::vector<int> positions, std::vector<uint8_t> &data);
+    bool setCycle2();
+    bool getCycle2(std::vector<uint8_t> &data);
+    DataCycle2 convertCycle2(const std::vector<uint8_t> data);
 
     bool send(const std::vector<uint8_t> message);
     bool receive(const std::vector<uint8_t> message, std::vector<uint8_t> &response, std::vector<uint8_t> &data);
@@ -106,6 +121,7 @@ class EwellixSerial
     void appendShort(std::vector<uint8_t> &message, uint16_t data);
     void appendInteger(std::vector<uint8_t> &message, int data);
     void appendVector(std::vector<uint8_t> &message, const std::vector<uint8_t> v);
+    void appendIntegerVector(std::vector<uint8_t> &message, const std::vector<int> v);
 
     uint16_t convertShort(const std::vector<uint8_t> data);
     uint32_t convertInteger(const std::vector<uint8_t> data);
