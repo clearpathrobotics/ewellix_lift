@@ -94,9 +94,10 @@ class EwellixHardwareInterface
   hardware_interface::return_type
   write(const rclcpp::Time& time, const rclcpp::Duration& period) final;
 
-  void asyncThread();
+  bool outOfPosition();
 
   protected:
+  int joint_count_;
   bool activated_;
   bool in_motion_;
   float conversion_;
@@ -111,7 +112,7 @@ class EwellixHardwareInterface
   std::unique_ptr<EwellixSerial> ewellix_serial_;
 
   std::vector<uint8_t> data_;
-  EwellixSerial::DataCycle1 state_;
+  EwellixSerial::DataCycle2 state_;
 };
 
 } // namespace ewellix_driver
