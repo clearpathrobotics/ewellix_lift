@@ -83,7 +83,7 @@
     timeout=1000
     conversion=3225
     rated_effort=2000
-    tolerance=0.0025
+    tolerance=0.005
     *origin">
     <!-- Parameters -->
     <xacro:property name="parameters" value="${xacro.load_yaml(parameters_file)}"/>
