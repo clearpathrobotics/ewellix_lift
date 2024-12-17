@@ -34,12 +34,12 @@
 #ifndef EWELLIX_DRIVER__EWELLIX_SERIAL_HPP_
 #define EWELLIX_DRIVER__EWELLIX_SERIAL_HPP_
 
-#include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <iostream>
 #include <thread>
 #include "serial/serial.h"
-#include "ewellix_driver/ewellix_serial/ewellix_serial_proto.hpp"
+// #include "ewellix_driver/ewellix_serial/ewellix_serial_proto.hpp"
 
 namespace ewellix_driver
 {
@@ -47,45 +47,228 @@ namespace ewellix_driver
 class EwellixSerial
 {
   public:
-    struct DataCycle1
+    enum Command
     {
-      signed int actual_position_a1;
-      signed int actual_position_a2;
-      unsigned short speed_a1;
-      unsigned short speed_a2;
-      unsigned char status1_a1;
-      unsigned char status1_a2;
+      REMOTE = 0x52,            // R
+      DATA_GET = 0x47,          // G
+      DATA_TRANSFER = 0x54,     // T
+      CYCLIC = 0x43,            // C
+      EXECUTE_FUNCTION = 0x45,  // E
+      STOP = 0x53,              // S
+      OPEN = 0x4F,              // O
+      ABORT = 0x41              // A
     };
 
-    struct DataCycle2
+    enum Communication
     {
-      std::vector<int> actual_positions;
-      std::vector<int> remote_positions;
-      std::vector<uint16_t> speeds;
-      std::vector<uint16_t> currents;
-      std::vector<uint8_t> status1;
-      std::vector<uint32_t> errors;
+      ACK = 0x06,
+      ERROR_CHECKSUM = 0x80,
+      ERROR_PARAMETER_DATA = 0x81,
+      ERROR_PARAMETER_COUNT = 0x82,
+      ERROR_INVALID_COMMAND = 0x83,
+      ERROR_PERMISSION = 0x84
     };
 
-    struct Status1
+    enum DataField
     {
-      bool available;
-      bool limit_in_out;
-      bool switch1;
-      bool switch2;
-      bool motion;
-      bool reached;
-      bool out_position;
-      bool stroke;
+      FIRMWARE = 0x0001,
+      CONFIGURATION = 0x0002,
+      ACTUAL_POSITION_ALL = 0x0010,
+      ACTUAL_POSITION_ACTUATOR = 0x0011,
+      ACTUAL_STATE_BINARY = 0x0020,
+      ACTUAL_STATE_ANALOG = 0x0030,
+      ACTUAL_STATE_KEYS = 0x0040,
+      NUMBER_CYCLE_IN_ALL = 0x0060,
+      NUMBER_CYCLE_IN_ACTUATOR = 0x0061,
+      NUMBER_CYCLE_OUT_ALL = 0x0070,
+      NUMBER_CYCLE_OUT_ACTUATOR = 0x0071,
+      NUMBER_ERROR_ALL = 0x0080,
+      NUMBER_ERROR_ACTUATOR = 0x0081,
+      NUMBER_TOTAL_OVER_CURRENT = 0x008F,
+      CUMULATED_STROKE = 0x0090,
+      CUMULATED_STROKE_ACTUATOR = 0x0091,
+      CURRENT_ALL = 0x00A0,
+      CURRENT_ACTUATOR = 0x00A1,
+      MAX_CURRENT_ALL = 0x00B0,
+      MAX_CURRENT_ACTUATOR = 0x00B1,
+      MAX_TOTAL_CURRENT = 0x00BF,
+      MAX_TEMP_RECTIFIER = 0x00C0,
+      OVER_TEMP_RECTIFIER = 0x00C1,
+      ERROR_CODE_HISTORY = 0x00D0,
+      STATUS_2_ALL = 0x00E0,
+      STATUS_2_ACTUATOR = 0x00E1,
+      SPEED_ALL = 0x00F0,
+      SPEED_ACTUATOR = 0x00F1,
+      BATTERY_MAINS = 0x0100,
+      BINARY_OUTPUT_STATUS = 0x0110,
+      LED_HS = 0x0120,
+      LED_LB = 0x0130,
+      BUZZER = 0x0140,
+      SENSOR_SUPPLY = 0x0150,
+      LOCK_STATUS = 0x0162,
+      BATTERY_VOLTAGE = 0x0164,
+      LOCKING_BOX_DETECTED = 0x0165,
+      USER = 0x0166,
+      STATUS_1_ALL = 0x0170,
+      STATUS_1_ACTUATOR = 0x0171,
+      CONVERSION_FACTOR_ALL = 0x1010,
+      CONVERSION_FACTOR_ACTUATOR = 0x1011,
+      USER_POSITION_ALL = 0x2000,
+      USER_POSITION_ACTUATOR = 0x2001
     };
 
-    struct SCUError
+    enum WritableDataField
     {
-      bool fault_ram;
-      bool fault_rom;
-      bool fault_cpu;
-      bool stack_overrun;
-      bool sequence_error;
+      CYCLIC_OBJECT = 0x3001,
+      REMOTE_SPEED_ALL = 0x3010,
+      REMOTE_SPEED_FUNCTION = 0x301A,
+      REMOTE_POSITION_ALL = 0x3020,
+      REMOTE_POSITION_ACTUATOR = 0x3021
+    };
+
+    enum Function
+    {
+      NO_MOTION,
+      IN,
+      OUT,
+      MEM1,
+      MEM2,
+      MEM3,
+      MEM4,
+      INTERMEDIATE_IN,
+      INTERMEDIATE_OUT,
+      REMOTE_POSITION
+    };
+
+    enum SafetyMode
+    {
+      TERMINATE,
+      ACTUATOR_STOP,
+      REMOTE_STOP
+    };
+
+    enum StopMode
+    {
+      FAST,
+      SLOW
+    };
+
+    enum Actuator
+    {
+      ACTUATOR_1,
+      ACTUATOR_2,
+      ACTUATOR_3,
+      ACTUATOR_4,
+      ACTUATOR_5,
+      ACTUATOR_6,
+      ALL = 0x07
+    };
+
+    enum CyclicObject
+    {
+      OBJECT_1,
+      OBJECT_2,
+      OBJECT_3,
+      OBJECT_4,
+      OBJECT_5
+    };
+
+    enum Empty
+    {
+      INTEGER = 0xFFFFFFFF,
+      SHORT = 0xFFFF,
+      BYTE = 0xFF
+    };
+
+    enum EncoderLimit
+    {
+      LOWER = 0,
+      UPPER = 865
+    };
+
+    class Status1
+    {
+      public:
+        Status1();
+        Status1(const std::vector<uint8_t> data);
+        void setFromData(const std::vector<uint8_t> data);
+
+        uint8_t code;
+        bool available;
+        bool limit_in_out;
+        bool switch1;
+        bool switch2;
+        bool motion;
+        bool reached;
+        bool out_position;
+        bool stroke;
+    };
+
+    class SCUError
+    {
+      public:
+        SCUError();
+        SCUError(const std::vector<uint8_t> data);
+        void setFromData(const std::vector<uint8_t> data);
+
+        int code;
+        bool fault_ram;
+        bool fault_rom;
+        bool fault_cpu;
+        bool stack_overrun;
+        bool sequence_error;
+        bool hand_switch_short;
+        bool binary_inputs_short;
+        bool faulty_relay;
+        bool move_enable_comms;
+        bool move_enable_incorrect;
+        bool over_temperature;
+        bool battery_discharge;
+        bool over_current;
+        bool drive_1_error;
+        bool drive_2_error;
+        bool drive_3_error;
+        bool drive_4_error;
+        bool drive_5_error;
+        bool drive_6_error;
+        bool position_difference;
+        bool remote_timeout;
+        bool lockbox_comm_error;
+        bool ram_config_data_crc;
+        bool ram_user_data_crc;
+        bool ram_lockbox_data_crc;
+        bool ram_dynamic_data_crc;
+        bool ram_calib_data_crc;
+        bool ram_hw_settings_crc;
+        bool io_test;
+        bool idf_opsys_error;
+    };
+
+    class Cycle1Data
+    {
+      public:
+        Cycle1Data();
+        Cycle1Data(const std::vector<uint8_t> data);
+        void setFromData(const std::vector<uint8_t> data);
+
+        std::vector<int> actual_positions;
+        std::vector<uint16_t> speeds;
+        std::vector<Status1> status;
+    };
+
+    class Cycle2Data
+    {
+      public:
+        Cycle2Data();
+        Cycle2Data(const std::vector<uint8_t> data);
+        void setFromData(const std::vector<uint8_t> data);
+
+        std::vector<int> actual_positions;
+        std::vector<int> remote_positions;
+        std::vector<uint16_t> speeds;
+        std::vector<uint16_t> currents;
+        std::vector<Status1> status;
+        std::vector<SCUError> errors;
     };
 
     EwellixSerial();
@@ -104,14 +287,12 @@ class EwellixSerial
     bool stop(uint8_t actuator, uint8_t mode);
 
     bool cycle1(int a1_position, int a2_position, std::vector<uint8_t> &data);
-    bool setCycle1();
-    bool getCycle1(std::vector<uint8_t> &data);
-    DataCycle1 convertCycle1(const std::vector<uint8_t> data);
+    bool setCyclicObject1();
+    bool getCyclicObject1(std::vector<uint8_t> &data);
 
     bool cycle2(const std::vector<int> positions, std::vector<uint8_t> &data);
-    bool setCycle2();
-    bool getCycle2(std::vector<uint8_t> &data);
-    DataCycle2 convertCycle2(const std::vector<uint8_t> data);
+    bool setCyclicObject2();
+    bool getCyclicObject2(std::vector<uint8_t> &data);
 
     bool send(const std::vector<uint8_t> message);
     bool receive(const std::vector<uint8_t> message, std::vector<uint8_t> &response, std::vector<uint8_t> &data);
@@ -130,67 +311,112 @@ class EwellixSerial
     bool checkResponseChecksum(const std::vector<uint8_t> response);
     uint16_t calculateChecksum(const std::vector<uint8_t> message);
 
-    // Execute Motion
+    /**
+     * Execute move All actuators to Remote positions.
+     * @return true if command sent successfully.
+     */
     bool executeAllRemote()
     {
-      return execute(ACTUATOR_ALL, FUNCTION_REMOTE);
+      return execute(Actuator::ALL, Function::REMOTE_POSITION);
     };
 
-    // Stop Motion
+    /**
+     * Stop All actuators without speed ramp.
+     * @return true if command sent successfully.
+     */
     bool stopAll()
     {
-      return stop(ACTUATOR_ALL, STOP_MODE_FAST);
+      return stop(Actuator::ALL, StopMode::FAST);
     };
 
-    // Get Actuator Data
+    /**
+     * Generic get function for specific actuator
+     * @return true if data retrieved successfully.
+     */
     bool getActuatorData(uint16_t field, uint16_t actuator, std::vector<uint8_t> &data)
     {
       return get(field + actuator, data);
     };
 
+    /**
+     * Get actual position of specific actuator
+     * @return true if data retrieved successfully.
+     */
     bool getActuatorActualPosition(uint16_t actuator, std::vector<uint8_t> &data)
     {
-      return getActuatorData(DATA_ACTUAL_POSITION_ACTUATOR, actuator, data);
+      return getActuatorData(DataField::ACTUAL_POSITION_ACTUATOR, actuator, data);
     };
 
+    /**
+     * Get error of specific actuator
+     * @return true if data retrieved successfully.
+     */
     bool getActuatorError(uint16_t actuator, std::vector<uint8_t> &data)
     {
-      return getActuatorData(DATA_NUMBER_ERROR_ACTUATOR, actuator, data);
+      return getActuatorData(DataField::NUMBER_ERROR_ACTUATOR, actuator, data);
     };
 
+    /**
+     * Get cumulated motion of specific actuator
+     * @return true if data retrieved successfully.
+     */
     bool getActuatorCumulatedStroke(uint16_t actuator, std::vector<uint8_t> &data)
     {
-      return getActuatorData(DATA_CUMULATED_STROKE_ACTUATOR, actuator, data);
+      return getActuatorData(DataField::CUMULATED_STROKE_ACTUATOR, actuator, data);
     };
 
+    /**
+     * Get current of specific actuator
+     * @return true if data retrieved successfully.
+     */
     bool getActuatorCurrent(uint16_t actuator, std::vector<uint8_t> &data)
     {
-      return getActuatorData(DATA_CURRENT_ACTUATOR, actuator, data);
+      return getActuatorData(DataField::CURRENT_ACTUATOR, actuator, data);
     };
 
+    /**
+     * Get max current of specific actuator
+     * @return true if data retrieved successfully.
+     */
     bool getActuatorMaxCurrent(uint16_t actuator, std::vector<uint8_t> &data)
     {
-      return getActuatorData(DATA_MAX_CURRENT_ACTUATOR, actuator, data);
+      return getActuatorData(DataField::MAX_CURRENT_ACTUATOR, actuator, data);
     };
 
+    /**
+     * Get Status1 field of specific actuator
+     * @return true if data retrieved successfully.
+     */
     bool getActuatorStatus1(uint16_t actuator, std::vector<uint8_t> &data)
     {
-      return getActuatorData(DATA_STATUS_1_ACTUATOR, actuator, data);
+      return getActuatorData(DataField::STATUS_1_ACTUATOR, actuator, data);
     };
 
+    /**
+     * Get Status2 field of specific actuator
+     * @return true if data retrieved successfully.
+     */
     bool getActuatorStatus2(uint16_t actuator, std::vector<uint8_t> &data)
     {
-      return getActuatorData(DATA_STATUS_2_ACTUATOR, actuator, data);
+      return getActuatorData(DataField::STATUS_2_ACTUATOR, actuator, data);
     };
 
+    /**
+     * Get speed field of specific actuator
+     * @return true if data retrieved successfully.
+     */
     bool getActuatorSpeed(uint16_t actuator, std::vector<uint8_t> &data)
     {
-      return getActuatorData(DATA_SPEED_ACTUATOR, actuator, data);
+      return getActuatorData(DataField::SPEED_ACTUATOR, actuator, data);
     };
 
+    /**
+     * Get remote position field of specific actuator
+     * @return true if data retrieved successfully.
+     */
     bool getActuatorRemotePosition(uint16_t actuator, std::vector<uint8_t> &data)
     {
-      return getActuatorData(WRITEABLE_DATA_REMOTE_POSITION_ACTUATOR, actuator, data);
+      return getActuatorData(WritableDataField::REMOTE_POSITION_ACTUATOR, actuator, data);
     };
     serial::Serial * serial_ = nullptr;
 
@@ -233,8 +459,6 @@ class EwellixSerial
     std::string port_;
     int baud_rate_;
     int timeout_;
-
-
 };
 
 }

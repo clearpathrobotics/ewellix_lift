@@ -121,11 +121,11 @@ EwellixSerial::close()
 bool
 EwellixSerial::activate()
 {
-  std::vector<uint8_t> parameters = {SAFETY_MODE_STOP};
+  std::vector<uint8_t> parameters = {SafetyMode::REMOTE_STOP};
   std::vector<uint8_t> response;
   std::vector<uint8_t> data;
 
-  return call(COMMAND_OPEN, parameters, response, data);
+  return call(Command::OPEN, parameters, response, data);
 }
 
 /**
@@ -140,7 +140,7 @@ EwellixSerial::deactivate()
   std::vector<uint8_t> response;
   std::vector<uint8_t> data;
 
-  return call(COMMAND_ABORT, parameters, response, data);
+  return call(Command::ABORT, parameters, response, data);
 }
 
 /**
@@ -151,11 +151,11 @@ EwellixSerial::deactivate()
 bool
 EwellixSerial::cycle()
 {
-  std::vector<uint8_t> parameters = {0x01, 0x00, 0xff};
+  std::vector<uint8_t> parameters = {0x01, 0x00, Empty::BYTE};
   std::vector<uint8_t> response;
   std::vector<uint8_t> data;
 
-  return call(COMMAND_CYCLIC, parameters, response, data);
+  return call(Command::CYCLIC, parameters, response, data);
 }
 
 /**
@@ -170,33 +170,33 @@ EwellixSerial::cycle()
  * @return true if command is successful.
  */
 bool
-EwellixSerial::setCycle1()
+EwellixSerial::setCyclicObject1()
 {
   std::vector<uint8_t> data;
 
   // Write: Remote Position Actuator1
-  this->appendShort(data, WRITEABLE_DATA_REMOTE_POSITION_ACTUATOR + ACTUATOR_1);
+  this->appendShort(data, WritableDataField::REMOTE_POSITION_ACTUATOR + Actuator::ACTUATOR_1);
   // Write: Remote Position Actuator2
-  this->appendShort(data, WRITEABLE_DATA_REMOTE_POSITION_ACTUATOR + ACTUATOR_2);
+  this->appendShort(data, WritableDataField::REMOTE_POSITION_ACTUATOR + Actuator::ACTUATOR_2);
   // Padding
-  this->appendShort(data, EMPTY_SHORT);
-  this->appendShort(data, EMPTY_SHORT);
-  this->appendShort(data, EMPTY_SHORT);
-  this->appendShort(data, EMPTY_SHORT);
+  this->appendShort(data, Empty::SHORT);
+  this->appendShort(data, Empty::SHORT);
+  this->appendShort(data, Empty::SHORT);
+  this->appendShort(data, Empty::SHORT);
   // Read: Actual Position Actuator1
-  this->appendShort(data, DATA_ACTUAL_POSITION_ACTUATOR + ACTUATOR_1);
+  this->appendShort(data, DataField::ACTUAL_POSITION_ACTUATOR + Actuator::ACTUATOR_1);
   // Read: Actual Position Actuator2
-  this->appendShort(data, DATA_ACTUAL_POSITION_ACTUATOR + ACTUATOR_2);
+  this->appendShort(data, DataField::ACTUAL_POSITION_ACTUATOR + Actuator::ACTUATOR_2);
   // Read: Speed Actuator1
-  this->appendShort(data, DATA_SPEED_ACTUATOR + ACTUATOR_1);
+  this->appendShort(data, DataField::SPEED_ACTUATOR + Actuator::ACTUATOR_1);
   // Read: Speed Actuator2
-  this->appendShort(data, DATA_SPEED_ACTUATOR + ACTUATOR_2);
+  this->appendShort(data, DataField::SPEED_ACTUATOR + Actuator::ACTUATOR_2);
   // Read: Status1 Actuator1
-  this->appendShort(data, DATA_STATUS_1_ACTUATOR + ACTUATOR_1);
+  this->appendShort(data, DataField::STATUS_1_ACTUATOR + Actuator::ACTUATOR_1);
   // Read: Status1 Actuator2
-  this->appendShort(data, DATA_STATUS_1_ACTUATOR + ACTUATOR_2);
+  this->appendShort(data, DataField::STATUS_1_ACTUATOR + Actuator::ACTUATOR_2);
 
-  return this->set(WRITEABLE_DATA_CYCLIC_OBJECT + CYCLIC_OBJECT_1, data);
+  return this->set(WritableDataField::CYCLIC_OBJECT + CyclicObject::OBJECT_1, data);
 }
 
 /**
@@ -211,9 +211,9 @@ EwellixSerial::setCycle1()
  * @return true if successfully retrieve data.
  */
 bool
-EwellixSerial::getCycle1(std::vector<uint8_t> &data)
+EwellixSerial::getCyclicObject1(std::vector<uint8_t> &data)
 {
-  return this->get(WRITEABLE_DATA_CYCLIC_OBJECT + CYCLIC_OBJECT_1, data);
+  return this->get(WritableDataField::CYCLIC_OBJECT + CyclicObject::OBJECT_1, data);
 }
 
 /**
@@ -236,7 +236,7 @@ EwellixSerial::cycle1(int a1_position, int a2_position, std::vector<uint8_t> &da
   std::vector<uint8_t> parameters;
   std::vector<uint8_t> response;
 
-  std::vector<uint8_t> write_data = {CYCLIC_OBJECT_1};
+  std::vector<uint8_t> write_data = {CyclicObject::OBJECT_1};
   this->appendInteger(write_data, a1_position);
   this->appendInteger(write_data, a2_position);
 
@@ -245,7 +245,7 @@ EwellixSerial::cycle1(int a1_position, int a2_position, std::vector<uint8_t> &da
   this->appendShort(parameters, size);
   this->appendVector(parameters, write_data);
 
-  return call(COMMAND_CYCLIC, parameters, response, data);
+  return call(Command::CYCLIC, parameters, response, data);
 }
 
 /**
@@ -261,32 +261,32 @@ EwellixSerial::cycle1(int a1_position, int a2_position, std::vector<uint8_t> &da
  * @return true if command is successful.
  */
 bool
-EwellixSerial::setCycle2()
+EwellixSerial::setCyclicObject2()
 {
   std::vector<uint8_t> data;
 
   // Write: Remote Position
-  this->appendShort(data, WRITEABLE_DATA_REMOTE_POSITION_ALL);
+  this->appendShort(data, WritableDataField::REMOTE_POSITION_ALL);
   // Padding
-  this->appendShort(data, EMPTY_SHORT);
-  this->appendShort(data, EMPTY_SHORT);
-  this->appendShort(data, EMPTY_SHORT);
-  this->appendShort(data, EMPTY_SHORT);
-  this->appendShort(data, EMPTY_SHORT);
+  this->appendShort(data, Empty::SHORT);
+  this->appendShort(data, Empty::SHORT);
+  this->appendShort(data, Empty::SHORT);
+  this->appendShort(data, Empty::SHORT);
+  this->appendShort(data, Empty::SHORT);
   // Read: Actual Position
-  this->appendShort(data, DATA_ACTUAL_POSITION_ALL);
+  this->appendShort(data, DataField::ACTUAL_POSITION_ALL);
   // Read: Remote Position
-  this->appendShort(data, WRITEABLE_DATA_REMOTE_POSITION_ALL);
+  this->appendShort(data, WritableDataField::REMOTE_POSITION_ALL);
   // Read: Speed
-  this->appendShort(data, DATA_SPEED_ALL);
+  this->appendShort(data, DataField::SPEED_ALL);
   // Read: Current
-  this->appendShort(data, DATA_CURRENT_ALL);
+  this->appendShort(data, DataField::CURRENT_ALL);
   // Read: Status1
-  this->appendShort(data, DATA_STATUS_1_ALL);
+  this->appendShort(data, DataField::STATUS_1_ALL);
   // Read: Error
-  this->appendShort(data, DATA_ERROR_CODE_HISTORY);
+  this->appendShort(data, DataField::ERROR_CODE_HISTORY);
 
-  return this->set(WRITEABLE_DATA_CYCLIC_OBJECT + CYCLIC_OBJECT_2, data);
+  return this->set(WritableDataField::CYCLIC_OBJECT + CyclicObject::OBJECT_2, data);
 }
 
 /**
@@ -301,9 +301,9 @@ EwellixSerial::setCycle2()
  * @return true if successfully retrieve data.
  */
 bool
-EwellixSerial::getCycle2(std::vector<uint8_t> &data)
+EwellixSerial::getCyclicObject2(std::vector<uint8_t> &data)
 {
-  return this->get(WRITEABLE_DATA_CYCLIC_OBJECT + CYCLIC_OBJECT_2, data);
+  return this->get(WritableDataField::CYCLIC_OBJECT + CyclicObject::OBJECT_2, data);
 }
 
 /**
@@ -325,7 +325,7 @@ EwellixSerial::cycle2(const std::vector<int> positions, std::vector<uint8_t> &da
   std::vector<uint8_t> parameters;
   std::vector<uint8_t> response;
 
-  std::vector<uint8_t> write_data = {CYCLIC_OBJECT_2};
+  std::vector<uint8_t> write_data = {CyclicObject::OBJECT_2};
   this->appendIntegerVector(write_data, positions);
   for(int i = int(positions.size()); i < 6; i++)
   {
@@ -337,7 +337,7 @@ EwellixSerial::cycle2(const std::vector<int> positions, std::vector<uint8_t> &da
   this->appendShort(parameters, size);
   this->appendVector(parameters, write_data);
 
-  return call(COMMAND_CYCLIC, parameters, response, data);
+  return call(Command::CYCLIC, parameters, response, data);
 }
 
 /**
@@ -356,7 +356,7 @@ EwellixSerial::get(uint16_t field, std::vector<uint8_t> &data)
 
   this->appendShort(parameters, static_cast<uint16_t>(field));
 
-  return call(COMMAND_DATA_GET, parameters, response, data);
+  return call(Command::DATA_GET, parameters, response, data);
 }
 
 /**
@@ -379,7 +379,7 @@ EwellixSerial::set(uint16_t field, const std::vector<uint8_t> data)
   this->appendShort(parameters, field);
   this->appendVector(parameters, data);
 
-  return call(COMMAND_DATA_TRANSFER, parameters, response, empty);
+  return call(Command::DATA_TRANSFER, parameters, response, empty);
 }
 
 /**
@@ -398,9 +398,9 @@ EwellixSerial::execute(uint8_t actuator, uint8_t function)
 
   parameters.push_back(actuator);
   parameters.push_back(function);
-  parameters.push_back(EMPTY_BYTE);
+  parameters.push_back(Empty::BYTE);
 
-  return call(COMMAND_EXECUTE_FUNCTION, parameters, response, empty);
+  return call(Command::EXECUTE_FUNCTION, parameters, response, empty);
 }
 
 /**
@@ -420,7 +420,7 @@ EwellixSerial::stop(uint8_t actuator, uint8_t mode)
   parameters.push_back(actuator);
   parameters.push_back(mode);
 
-  return call(COMMAND_STOP, parameters, response, empty);
+  return call(Command::STOP, parameters, response, empty);
 }
 
 /**
@@ -514,7 +514,9 @@ EwellixSerial::receive(const std::vector<uint8_t> message, std::vector<uint8_t> 
   uint16_t count = 0;
   uint16_t crc_count = 2;
   uint16_t data_count = 0;
-  // Lock
+  std::chrono::milliseconds elapsed;
+  std::chrono::steady_clock::time_point current;
+  std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 
   while(receiving)
   {
@@ -531,7 +533,7 @@ EwellixSerial::receive(const std::vector<uint8_t> message, std::vector<uint8_t> 
       {
         case 0:
           // Byte 0: Always 'R'
-          if(byte != COMMAND_REMOTE)
+          if(byte != Command::REMOTE)
           {
             break;
           }
@@ -543,19 +545,22 @@ EwellixSerial::receive(const std::vector<uint8_t> message, std::vector<uint8_t> 
           if(byte != command)
           {
             // Error!
-            return false;
+            std::cout << __PRETTY_FUNCTION__ << ": Response command type does not match sent command. Sent: " << command << " Received: " << byte << "Trying again..." << std::endl;
+            response.clear();
+            count = 0;
+            break;
           }
           // Special Case Cyclic without Data
-          if(byte == COMMAND_CYCLIC && message[4] == EMPTY_BYTE)
+          if(byte == Command::CYCLIC && message[4] == Empty::BYTE)
           {
-            command = COMMAND_REMOTE;
+            command = Command::REMOTE;
           }
           response.push_back(byte);
           count++;
           break;
         case 2:
           // Byte 2: Acknowledge or Error
-          success &= byte == ACK;
+          success &= byte == Communication::ACK;
           receiving = success;
           response.push_back(byte);
           count++;
@@ -563,7 +568,7 @@ EwellixSerial::receive(const std::vector<uint8_t> message, std::vector<uint8_t> 
         default:
           switch(command)
           {
-            case COMMAND_DATA_GET:
+            case Command::DATA_GET:
               /*
                * Response Data Get
                *   Byte: Value
@@ -574,7 +579,7 @@ EwellixSerial::receive(const std::vector<uint8_t> message, std::vector<uint8_t> 
                *      ...
                *      n: DataByte[DataCount-1]
                */
-            case COMMAND_CYCLIC:
+            case Command::CYCLIC:
               /* Response Cyclic:
                *   Byte: Value
                *      0: ACK or Error
@@ -617,11 +622,11 @@ EwellixSerial::receive(const std::vector<uint8_t> message, std::vector<uint8_t> 
                   break;
               }
               break;
-            case COMMAND_DATA_TRANSFER:
-            case COMMAND_EXECUTE_FUNCTION:
-            case COMMAND_STOP:
-            case COMMAND_OPEN:
-            case COMMAND_ABORT:
+            case Command::DATA_TRANSFER:
+            case Command::EXECUTE_FUNCTION:
+            case Command::STOP:
+            case Command::OPEN:
+            case Command::ABORT:
             default:
               // Last 2 Bytes: Read Checksum
               crc_count--;
@@ -636,7 +641,10 @@ EwellixSerial::receive(const std::vector<uint8_t> message, std::vector<uint8_t> 
     }
     else
     {
-      // Wait
+      current = std::chrono::steady_clock::now();
+      elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(current-start);
+
+      receiving &= elapsed.count() < timeout_;
     }
   }
   // Check Checksum from Response
@@ -661,61 +669,6 @@ EwellixSerial::receive(const std::vector<uint8_t> message, std::vector<uint8_t> 
 }
 
 /**
- * Utility: append short to byte vector with LSB first.
- *
- * @param[out] message to append data to.
- * @param[in] 16-bit data to append to message.
- */
-void
-EwellixSerial::appendShort(std::vector<uint8_t> &message, uint16_t data)
-{
-  message.push_back(static_cast<uint8_t> (data & 0x00FF));
-  message.push_back(static_cast<uint8_t> (data >> 8));
-}
-
-/**
- * Utility: append integer to byte vector with LSB first.
- *
- * @param[out] message to append data to.
- * @param[in] 32-bit data to append to message.
- */
-void
-EwellixSerial::appendInteger(std::vector<uint8_t> &message, int data)
-{
-  message.push_back(static_cast<uint8_t> (data & 0x00FF));
-  message.push_back(static_cast<uint8_t> ((data >> 8) & 0x00FF));
-  message.push_back(static_cast<uint8_t> ((data >> 16) & 0x00FF));
-  message.push_back(static_cast<uint8_t> ((data >> 24) & 0x00FF));
-}
-
-/**
- * Utility: append byte vector to byte vector.
- *
- * @param[out] message to append data to.
- * @param[in] byte vector to append to message.
- */
-void
-EwellixSerial::appendVector(std::vector<uint8_t> &message, const std::vector<uint8_t> v)
-{
-  message.insert(message.end(), v.begin(), v.end());
-}
-
-/**
- * Utility: append vector of integers to byte vector.
- *
- * @param[out] message to append data to.
- * @param[in] integer vector to append to message with LSB first.
- */
-void
-EwellixSerial::appendIntegerVector(std::vector<uint8_t> &message, const std::vector<int> v)
-{
-  for(auto integer : v)
-  {
-    appendInteger(message, integer);
-  }
-}
-
-/**
  * Create message
  *
  * @param[in] command. Type of action to command.
@@ -730,7 +683,7 @@ EwellixSerial::generateMessage(uint8_t command, const std::vector<uint8_t> param
   message.clear();
 
   // Add Remote Command
-  message.push_back(COMMAND_REMOTE);
+  message.push_back(Command::REMOTE);
   message.push_back(command);
 
   // Data count
@@ -739,7 +692,7 @@ EwellixSerial::generateMessage(uint8_t command, const std::vector<uint8_t> param
   // Check required parameters
   switch (command)
   {
-  case COMMAND_DATA_GET:
+  case Command::DATA_GET:
     /**
      * Command Data Get
      *   Byte: Value
@@ -756,7 +709,7 @@ EwellixSerial::generateMessage(uint8_t command, const std::vector<uint8_t> param
       return false;
     }
     break;
-  case COMMAND_DATA_TRANSFER:
+  case Command::DATA_TRANSFER:
     /**
      * Command Data Transfer
      *   Byte: Value
@@ -771,7 +724,7 @@ EwellixSerial::generateMessage(uint8_t command, const std::vector<uint8_t> param
      *      n: DataByte[DataCount-1]
      */
     // Check message length
-  case COMMAND_CYCLIC:
+  case Command::CYCLIC:
     /**
      * Command Cyclic
      *    Byte: Value
@@ -797,7 +750,7 @@ EwellixSerial::generateMessage(uint8_t command, const std::vector<uint8_t> param
       return false;
     }
     break;
-  case COMMAND_EXECUTE_FUNCTION:
+  case Command::EXECUTE_FUNCTION:
     /**
      * Command Execute Function
      *   Byte: Value
@@ -808,7 +761,7 @@ EwellixSerial::generateMessage(uint8_t command, const std::vector<uint8_t> param
      *      4: ParameterID[1]
      */
     break;
-  case COMMAND_STOP:
+  case Command::STOP:
     /**
      * Command Stop
      *   Byte: Value
@@ -818,7 +771,7 @@ EwellixSerial::generateMessage(uint8_t command, const std::vector<uint8_t> param
      *      3: ParameterID[0]
      */
     break;
-  case COMMAND_OPEN:
+  case Command::OPEN:
     /**
      * Command Open
      *   Byte: Value
@@ -827,7 +780,7 @@ EwellixSerial::generateMessage(uint8_t command, const std::vector<uint8_t> param
      *      2: SafetyID[0]
      */
     break;
-  case COMMAND_ABORT:
+  case Command::ABORT:
     /**
      * Command Abort
      *    Byte: Value
@@ -886,6 +839,61 @@ EwellixSerial::call(uint8_t command, const std::vector<uint8_t>parameters, std::
 }
 
 /**
+ * Utility: append short to byte vector with LSB first.
+ *
+ * @param[out] message to append data to.
+ * @param[in] 16-bit data to append to message.
+ */
+void
+EwellixSerial::appendShort(std::vector<uint8_t> &message, uint16_t data)
+{
+  message.push_back(static_cast<uint8_t> (data & 0x00FF));
+  message.push_back(static_cast<uint8_t> (data >> 8));
+}
+
+/**
+ * Utility: append integer to byte vector with LSB first.
+ *
+ * @param[out] message to append data to.
+ * @param[in] 32-bit data to append to message.
+ */
+void
+EwellixSerial::appendInteger(std::vector<uint8_t> &message, int data)
+{
+  message.push_back(static_cast<uint8_t> (data & 0x00FF));
+  message.push_back(static_cast<uint8_t> ((data >> 8) & 0x00FF));
+  message.push_back(static_cast<uint8_t> ((data >> 16) & 0x00FF));
+  message.push_back(static_cast<uint8_t> ((data >> 24) & 0x00FF));
+}
+
+/**
+ * Utility: append byte vector to byte vector.
+ *
+ * @param[out] message to append data to.
+ * @param[in] byte vector to append to message.
+ */
+void
+EwellixSerial::appendVector(std::vector<uint8_t> &message, const std::vector<uint8_t> v)
+{
+  message.insert(message.end(), v.begin(), v.end());
+}
+
+/**
+ * Utility: append vector of integers to byte vector.
+ *
+ * @param[out] message to append data to.
+ * @param[in] integer vector to append to message with LSB first.
+ */
+void
+EwellixSerial::appendIntegerVector(std::vector<uint8_t> &message, const std::vector<int> v)
+{
+  for(auto integer : v)
+  {
+    appendInteger(message, integer);
+  }
+}
+
+/**
  * Utility: convert data from vector to short
  *
  * @param[in] data. Byte vector of data to cast to 16-bit.
@@ -922,75 +930,217 @@ EwellixSerial::convertFloat(const std::vector<uint8_t> data)
 }
 
 /**
- * Utility: convert data from Cycle1 data to struct DataCycle1
- *
- * @param[in] data. Byte vector of data to cast to DataCycle1 struct.
- * @return DataCycle1 struct.
+ * Status1 constructor with all zeros
  */
-EwellixSerial::DataCycle1
-EwellixSerial::convertCycle1(const std::vector<uint8_t> data)
+EwellixSerial::Status1::Status1() : code(0),
+  available(false), limit_in_out(false), switch1(false), switch2(false),
+  motion(false), reached(false), out_position(false), stroke(false)
 {
-  DataCycle1 converted;
-  converted.actual_position_a1 = *reinterpret_cast<const signed int *>(&data[0]);
-  converted.actual_position_a2 = *reinterpret_cast<const signed int *>(&data[4]);
-  converted.speed_a1 = *reinterpret_cast<const unsigned short *>(&data[8]);
-  converted.speed_a2 = *reinterpret_cast<const unsigned short *>(&data[10]);
-  converted.status1_a1 = *reinterpret_cast<const unsigned char *>(&data[12]);
-  converted.status1_a2 = *reinterpret_cast<const unsigned char *>(&data[13]);
-  return converted;
 }
 
 /**
- * Utility: convert data from Cycle2 data to struct DataCycle2
+ * Status1 constructor setting variables with data from response.
  *
- * @param[in] data. Byte vector of data to cast to DataCycle2 struct.
- * @return DataCycle2 struct.
+ * @param[in] data from response.
  */
-EwellixSerial::DataCycle2
-EwellixSerial::convertCycle2(const std::vector<uint8_t> data)
+EwellixSerial::Status1::Status1(const std::vector<uint8_t> data) : code(0),
+  available(false), limit_in_out(false), switch1(false), switch2(false),
+  motion(false), reached(false), out_position(false), stroke(false)
 {
-  DataCycle2 converted;
+  setFromData(data);
+}
+
+/**
+ * Status1::setFromData, set variables from data from response.
+ *
+ * @param[in] data from response.
+ */
+void
+EwellixSerial::Status1::setFromData(const std::vector<uint8_t> data)
+{
+  code = data[0];
+  available =  bool(data[0] & (0x01 << 0));
+  limit_in_out = bool(data[0] & (0x01 << 1));
+  switch1 = bool(data[0] & (0x01 << 2));
+  switch2 = bool(data[0] & (0x01 << 3));
+  motion = bool(data[0] & (0x01 << 4));
+  reached = bool(data[0] & (0x01 << 5));
+  out_position = bool(data[0] & (0x01 << 6));
+  stroke = bool(data[0] & (0x01 << 7));
+}
+
+/**
+ * SCUError constructor with all zeros
+ */
+EwellixSerial::SCUError::SCUError() : code(0),
+  fault_ram(false), fault_rom(false), fault_cpu(false), stack_overrun(false),
+  sequence_error(false), hand_switch_short(false), binary_inputs_short(false),
+  faulty_relay(false), move_enable_comms(false), move_enable_incorrect(false),
+  over_temperature(false), battery_discharge(false), over_current(false),
+  drive_1_error(false), drive_2_error(false), drive_3_error(false),
+  drive_4_error(false), drive_5_error(false), drive_6_error(false),
+  position_difference(false), remote_timeout(false), lockbox_comm_error(false),
+  ram_config_data_crc(false), ram_user_data_crc(false), ram_lockbox_data_crc(false),
+  ram_dynamic_data_crc(false), ram_calib_data_crc(false), ram_hw_settings_crc(false),
+  io_test(false), idf_opsys_error(false)
+{
+}
+
+/**
+ * SCUError constructor setting variables with data from response.
+ *
+ * @param[in] data from response.
+ */
+EwellixSerial::SCUError::SCUError(const std::vector<uint8_t> data) : code(0),
+  fault_ram(false), fault_rom(false), fault_cpu(false), stack_overrun(false),
+  sequence_error(false), hand_switch_short(false), binary_inputs_short(false),
+  faulty_relay(false), move_enable_comms(false), move_enable_incorrect(false),
+  over_temperature(false), battery_discharge(false), over_current(false),
+  drive_1_error(false), drive_2_error(false), drive_3_error(false),
+  drive_4_error(false), drive_5_error(false), drive_6_error(false),
+  position_difference(false), remote_timeout(false), lockbox_comm_error(false),
+  ram_config_data_crc(false), ram_user_data_crc(false), ram_lockbox_data_crc(false),
+  ram_dynamic_data_crc(false), ram_calib_data_crc(false), ram_hw_settings_crc(false),
+  io_test(false), idf_opsys_error(false)
+{
+  setFromData(data);
+}
+
+/**
+ * SCUError::setFromData, set variables from data from response.
+ *
+ * @param[in] data from response.
+ */
+void
+EwellixSerial::SCUError::setFromData(const std::vector<uint8_t> data)
+{
+  code = *reinterpret_cast<const int *>(&data[0]);
+
+  fault_ram = bool(data[0] & (0x01 << 0)); // 1
+  fault_rom = bool(data[0] & (0x01 << 1)); // 2
+  fault_cpu = bool(data[0] & (0x01 << 2)); // 3
+  stack_overrun = bool(data[0] & (0x01 << 3)); // 4
+  sequence_error = bool(data[0] & (0x01 << 4)); // 5
+  hand_switch_short = bool(data[0] & (0x01 << 5)); // 6
+  binary_inputs_short = bool(data[0] & (0x01 << 6)); // 7
+  faulty_relay = bool(data[0] & (0x01 << 7)); // 8
+  // 9, empty
+  move_enable_comms = bool(data[1] & (0x01 << 1)); // 10
+  move_enable_incorrect = bool(data[1] & (0x01 << 2)); // 11
+  over_temperature = bool(data[1] & (0x01 << 3)); // 12
+  battery_discharge = bool(data[1] & (0x01 << 4)); // 13
+  over_current = bool(data[1] & (0x01 << 5)); // 14
+  drive_1_error = bool(data[1] & (0x01 << 6)); // 15
+  drive_2_error = bool(data[1] & (0x01 << 7)); // 16
+
+  drive_3_error = bool(data[2] & (0x01 << 0)); // 17
+  drive_4_error = bool(data[2] & (0x01 << 1)); // 18
+  drive_5_error = bool(data[2] & (0x01 << 2)); // 19
+  drive_6_error = bool(data[2] & (0x01 << 3)); // 20
+  position_difference = bool(data[2] & (0x01 << 4)); // 21
+  remote_timeout = bool(data[2] & (0x01 << 5)); // 22
+  // 23, empty
+  lockbox_comm_error = bool(data[2] & (0x01 << 7)); // 24
+
+  ram_config_data_crc = bool(data[3] & (0x01 << 0)); // 25
+  ram_user_data_crc = bool(data[3] & (0x01 << 1)); // 26
+  ram_lockbox_data_crc = bool(data[3] & (0x01 << 2)); // 27
+  ram_dynamic_data_crc = bool(data[3] & (0x01 << 3)); // 28
+  ram_calib_data_crc = bool(data[3] & (0x01 << 4)); // 29
+  ram_hw_settings_crc = bool(data[3] & (0x01 << 5)); // 30
+  io_test = bool(data[3] & (0x01 << 6)); // 31
+  idf_opsys_error = bool(data[3] & (0x01 << 7)); // 32
+}
+
+/**
+ * Cycle1Data constructor with all zeros.
+ */
+EwellixSerial::Cycle1Data::Cycle1Data() :
+  actual_positions({0, 0}), speeds({0, 0}),
+  status({EwellixSerial::Status1(), EwellixSerial::Status1()})
+{
+}
+
+/**
+ * Cycle1Data constructor setting variables with data from response.
+ *
+ * @param[in] data from response.
+ */
+EwellixSerial::Cycle1Data::Cycle1Data(const std::vector<uint8_t> data) :
+  actual_positions({0, 0}), speeds({0, 0}),
+  status({EwellixSerial::Status1(), EwellixSerial::Status1()})
+{
+  setFromData(data);
+}
+
+/**
+ * Cycle1Data::setFromData, set variables from data from response.
+ *
+ * @param[in] data from response.
+ */
+void
+EwellixSerial::Cycle1Data::setFromData(const std::vector<uint8_t> data)
+{
+  assert(data.size() == 14);
+  actual_positions[0] = *reinterpret_cast<const signed int *>(&data[0]);
+  actual_positions[1] = *reinterpret_cast<const signed int *>(&data[4]);
+  speeds[0] = *reinterpret_cast<const unsigned short *>(&data[8]);
+  speeds[1] = *reinterpret_cast<const unsigned short *>(&data[10]);
+  status[0].setFromData({data[12]});
+  status[1].setFromData({data[13]});
+ }
+
+/**
+ * Cycle2Data constructor with all zeros.
+ */
+EwellixSerial::Cycle2Data::Cycle2Data() :
+  actual_positions({0, 0, 0, 0, 0, 0}), remote_positions({0, 0, 0, 0, 0, 0}),
+  speeds({0, 0, 0, 0, 0, 0}), currents({0, 0, 0, 0, 0, 0}),
+  status(std::vector<EwellixSerial::Status1>(6,EwellixSerial::Status1())),
+  errors(std::vector<EwellixSerial::SCUError>(6,EwellixSerial::SCUError()))
+{
+}
+
+/**
+ * Cycle2Data constructor setting variables with data from response.
+ *
+ * @param[in] data from response.
+ */
+EwellixSerial::Cycle2Data::Cycle2Data(const std::vector<uint8_t> data) :
+  actual_positions({0, 0, 0, 0, 0, 0}), remote_positions({0, 0, 0, 0, 0, 0}),
+  speeds({0, 0, 0, 0, 0, 0}), currents({0, 0, 0, 0, 0, 0}),
+  status(std::vector<EwellixSerial::Status1>(6,EwellixSerial::Status1())),
+  errors(std::vector<EwellixSerial::SCUError>(6,EwellixSerial::SCUError()))
+{
+  setFromData(data);
+}
+
+/**
+ * Cycle2Data::setFromData
+ *
+ * @param[in] data from response.
+ */
+void
+EwellixSerial::Cycle2Data::setFromData(const std::vector<uint8_t> data)
+{
+  assert(data.size() == 98);
   for(int i = 0; i < 6; i++)
   {
-    converted.actual_positions.push_back(
-      *reinterpret_cast<const int *>(&data[0 + i*sizeof(int)]));
-    converted.remote_positions.push_back(
-      *reinterpret_cast<const int *>(&data[24 + i*sizeof(int)]));
-    converted.speeds.push_back(
-      *reinterpret_cast<const uint16_t *>(&data[48 + i*sizeof(uint16_t)]));
-    converted.currents.push_back(
-      *reinterpret_cast<const uint16_t *>(&data[60 + i*sizeof(uint16_t)]));
-    converted.status1.push_back(
-      *reinterpret_cast<const uint8_t *>(&data[72 + i*sizeof(uint8_t)]));
+    actual_positions[i] = *reinterpret_cast<const int *>(&data[0 + i*sizeof(int)]);
+    remote_positions[i] = *reinterpret_cast<const int *>(&data[24 + i*sizeof(int)]);
+    speeds[i] = *reinterpret_cast<const uint16_t *>(&data[48 + i*sizeof(uint16_t)]);
+    currents[i] = *reinterpret_cast<const uint16_t *>(&data[60 + i*sizeof(uint16_t)]);
+    status[i].setFromData({data[72 + i*sizeof(uint8_t)]});
   }
-  for(int i = 80; i < int(data.size()); i += sizeof(int))
+  for(int i = 0; i < 6; i++)
   {
-    converted.errors.push_back(
-      *reinterpret_cast<const int *>(&data[i]));
+    errors[i].setFromData({
+      data[78 + i*sizeof(int) + 0],
+      data[78 + i*sizeof(int) + 1],
+      data[78 + i*sizeof(int) + 2],
+      data[78 + i*sizeof(int) + 3]
+    });
   }
-  return converted;
 }
-
-/**
- * Utility: convert data from Status1 byte to struct Status1
- *
- * @param[in] data. Byte vector of data to cast to Status1 struct.
- * @return Status1 struct
- */
-EwellixSerial::Status1
-EwellixSerial::convertStatus1(const std::vector<uint8_t> data)
-{
-  EwellixSerial::Status1 converted;
-  converted.available = bool(data[0] & 0x01);
-  converted.limit_in_out = bool(data[0] & 0x02);
-  converted.switch1 = bool(data[0] & 0x04);
-  converted.switch2 = bool(data[0] & 0x08);
-  converted.motion = bool(data[0] & 0x10);
-  converted.reached = bool(data[0] & 0x20);
-  converted.out_position = bool(data[0] & 0x40);
-  converted.stroke = bool(data[0] & 0x80);
-  return converted;
-}
-
 }
 
