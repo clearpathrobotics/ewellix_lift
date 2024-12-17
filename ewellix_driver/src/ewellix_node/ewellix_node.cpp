@@ -40,11 +40,27 @@ namespace ewellix_driver
       std::chrono::milliseconds(250), std::bind(&EwellixNode::run, this));
     ewellix_serial_ = new EwellixSerial("/dev/ftdi_FT61IMGY", 38400, 1000);
     ewellix_serial_->open();
-    bool activate = ewellix_serial_->activate();
-    std::cout << "ACTIVATE: " << activate << std::endl;
-    ewellix_serial_->cycle();
-    ewellix_serial_->setCycle1();
-    ewellix_serial_->setCycle2();
+    if (!ewellix_serial_->activate())
+    {
+      RCLCPP_INFO(this->get_logger(), "Failed to activate remote communication.");
+      exit(1);
+    }
+    RCLCPP_INFO(this->get_logger(), "Successfully activated remote communication.");
+
+    if (!ewellix_serial_->cycle())
+    {
+      RCLCPP_INFO(this->get_logger(), "Failed to cycle remote communication.");
+      exit(1);
+    }
+    RCLCPP_INFO(this->get_logger(), "Successfully cycled remote communication.");
+
+    if (!ewellix_serial_->setCyclicObject2())
+    {
+      RCLCPP_INFO(this->get_logger(), "Failed to set CyclicObject2.");
+      exit(1);
+    }
+    RCLCPP_INFO(this->get_logger(), "Successfully set CyclicObject2");
+
     position_a1_ = 0;
     position_a2_ = 0;
     execute_ = false;
@@ -55,6 +71,8 @@ namespace ewellix_driver
       10,
       std::bind(&EwellixNode::executeCallback, this, std::placeholders::_1)
     );
+
+    ewellix_serial_->stopAll();
   }
 
   void
@@ -73,69 +91,41 @@ namespace ewellix_driver
     std::string elapsed;
     std::vector<uint8_t> data;
 
-    // cycle1
-    start = std::chrono::steady_clock::now();
-    ewellix_serial_->cycle1(position_a1_, position_a2_, data);
-    end = std::chrono::steady_clock::now();
-
-    EwellixSerial::DataCycle1 data_cycle1 = ewellix_serial_->convertCycle1(data);
-
-    elapsed = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
-
-    RCLCPP_INFO(this->get_logger(), "BEFORE CYCLE2");
     // cycle2
     start = std::chrono::steady_clock::now();
-    ewellix_serial_->cycle2({position_a1_, position_a2_}, data);
+    if(!ewellix_serial_->cycle2({position_a1_, position_a2_}, data))
+    {
+      RCLCPP_INFO(this->get_logger(), "Failed to cycle2 remote communication.");
+      exit(1);
+    }
     end = std::chrono::steady_clock::now();
+    RCLCPP_INFO(this->get_logger(), "Successfully cycled remote communication.");
 
-    RCLCPP_INFO(this->get_logger(), "SUCCESS CYCLE2");
-
-    EwellixSerial::DataCycle2 data_cycle2 = ewellix_serial_->convertCycle2(data);
+    EwellixSerial::Cycle2Data data_cycle2(data);
 
     elapsed = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
 
     RCLCPP_INFO(this->get_logger(), std::string(
-      " elapsed: " + elapsed + "ms" +
+      " elapsed: " + elapsed + "ms"
       " remote_a1: " + std::to_string(data_cycle2.remote_positions[0]) +
       " remote_a2: " + std::to_string(data_cycle2.remote_positions[1]) +
       " pose_a1:" + std::to_string(data_cycle2.actual_positions[0]) +
       " pose_a2:" + std::to_string(data_cycle2.actual_positions[1]) +
       " speed_a1:" + std::to_string(data_cycle2.speeds[0]) +
       " speed_a2:" + std::to_string(data_cycle2.speeds[1]) +
-      " status1_a1:" + std::to_string(data_cycle2.status1[0]) +
-      " status1_a2:" + std::to_string(data_cycle2.status1[1]) +
-      " error1: " + std::to_string(data_cycle2.errors[0]) +
-      " error2: " + std::to_string(data_cycle2.errors[1]) +
-      " error3: " + std::to_string(data_cycle2.errors[2]) +
-      " error4: " + std::to_string(data_cycle2.errors[3]) +
-      " error5: " + std::to_string(data_cycle2.errors[4])
+      " status1_a1:" + std::to_string(data_cycle2.status[0].code) +
+      " status1_a2:" + std::to_string(data_cycle2.status[1].code) +
+      " error1: " + std::to_string(data_cycle2.errors[0].code) +
+      " error2: " + std::to_string(data_cycle2.errors[1].code) +
+      " error3: " + std::to_string(data_cycle2.errors[2].code) +
+      " error4: " + std::to_string(data_cycle2.errors[3].code) +
+      " error5: " + std::to_string(data_cycle2.errors[4].code)
     ).c_str());
 
-    // EwellixSerial::Status1 status1 = ewellix_serial_->convertStatus1(data);
-
-    // ewellix_serial_->getCycle1(data);
-
-    // ewellix_serial_->getActuatorRemotePosition(0x00, data);
-    // int remote_a1 = ewellix_serial_->convertInteger(data);
-    // ewellix_serial_->getActuatorRemotePosition(0x01, data);
-    // int remote_a2 = ewellix_serial_->convertInteger(data);
-
-    // RCLCPP_INFO(this->get_logger(), std::string(
-    //   // " remote_a1: " + std::to_string(remote_a1) +
-    //   // " remote_a2: " + std::to_string(remote_a2) +
-    //   " pose_a1:" + std::to_string(data_cycle1.actual_position_a1) +
-    //   " pose_a2:" + std::to_string(data_cycle1.actual_position_a2) +
-    //   " speed_a1:" + std::to_string(data_cycle1.speed_a1) +
-    //   " speed_a2:" + std::to_string(data_cycle1.speed_a2) +
-    //   " status1_a1:" + std::to_string(data_cycle1.status1_a1) +
-    //   " status1_a2:" + std::to_string(data_cycle1.status1_a2)
-    // ).c_str());
-
-
     if(moving_ &&
-      data_cycle1.speed_a1 == 0 && data_cycle1.speed_a2 == 0 &&
-      abs(data_cycle1.actual_position_a1 - position_a1_) < 10 &&
-      abs(data_cycle1.actual_position_a2 - position_a2_) < 10)
+      data_cycle2.speeds[0] == 0 && data_cycle2.speeds[1] == 0 &&
+      abs(data_cycle2.actual_positions[0] - position_a1_) < 10 &&
+      abs(data_cycle2.actual_positions[1] - position_a2_) < 10)
     {
       moving_ = false;
       start = std::chrono::steady_clock::now();
