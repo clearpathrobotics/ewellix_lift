@@ -33,6 +33,9 @@
 #ifndef EWELLIX_DRIVER__EWELLIX_HARDWARE_INTERFACE_HPP_
 #define EWELLIX_DRIVER__EWELLIX_HARDWARE_INTERFACE_HPP_
 
+#include <chrono>
+#include <thread>
+
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 
@@ -94,7 +97,26 @@ class EwellixHardwareInterface
   hardware_interface::return_type
   write(const rclcpp::Time& time, const rclcpp::Duration& period) final;
 
-  bool outOfPosition();
+  bool
+  updateState();
+
+  bool
+  executeCommand();
+
+  void
+  asyncThread();
+
+  bool
+  outOfPosition();
+
+  bool
+  inMotion();
+
+  void
+  convertCommands();
+
+  bool
+  errorTriggered();
 
   protected:
   int joint_count_;
@@ -111,8 +133,12 @@ class EwellixHardwareInterface
 
   std::unique_ptr<EwellixSerial> ewellix_serial_;
 
+  std::atomic_bool async_error_;
+  std::atomic_bool async_thread_shutdown_;
+  std::shared_ptr<std::thread> async_thread_;
+
   std::vector<uint8_t> data_;
-  EwellixSerial::DataCycle2 state_;
+  EwellixSerial::Cycle2Data state_;
 };
 
 } // namespace ewellix_driver
