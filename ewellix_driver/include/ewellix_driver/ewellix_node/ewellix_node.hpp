@@ -50,17 +50,59 @@ public:
   EwellixNode(const std::string node_name);
 
   void run();
-  void executeCallback(const std_msgs::msg::Int32 &msg);
+  void commandCallback(const std_msgs::msg::Int32 &msg);
+
+  bool
+  updateState();
+
+  bool
+  executeCommand();
+
+  void
+  asyncThread();
+
+  bool
+  outOfPosition();
+
+  bool
+  inMotion();
+
+  void
+  convertCommands();
+
+  bool
+  errorTriggered();
 
 private:
-  rclcpp::TimerBase::SharedPtr run_timer_;
-  EwellixSerial * ewellix_serial_;
-  int position_a1_;
-  int position_a2_;
-  bool moving_;
-  bool execute_;
+  std::string port_;
+  int baud_;
+  int timeout_;
 
-  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr subExecute_;
+  int joint_count_;
+  bool activated_;
+  bool in_motion_;
+  float conversion_;
+  float rated_effort_;
+  float tolerance_;
+  float frequency_;
+  rclcpp::TimerBase::SharedPtr run_timer_;
+
+  std::vector<int>encoder_positions_, encoder_commands_;
+  std::vector<uint16_t>speed_, speed_commands_;
+  std::vector<double>positions_, position_commands_, old_positions_;
+  std::vector<double>velocities_;
+  std::vector<double>efforts_;
+
+  std::unique_ptr<EwellixSerial> ewellix_serial_;
+
+  std::atomic_bool async_error_;
+  std::atomic_bool async_thread_shutdown_;
+  std::shared_ptr<std::thread> async_thread_;
+
+  std::vector<uint8_t> data_;
+  EwellixSerial::Cycle2Data state_;
+
+  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr subCommand_;
 };
 
 } // namespace ewellix_driver
