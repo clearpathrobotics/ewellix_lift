@@ -326,49 +326,6 @@ EwellixHardwareInterface::on_error(const rclcpp_lifecycle::State& previous_state
  * Check if the lift is at the commanded position and stop.
  * Check if the lift is not at the commanded position and move.
  */
-// hardware_interface::return_type
-// EwellixHardwareInterface::read(const rclcpp::Time& time, const rclcpp::Duration& period)
-// {
-//   // Cycle
-//   if (activated_)
-//   {
-//     // Update
-//     if(!updateState())
-//     {
-//       return hardware_interface::return_type::ERROR;
-//     }
-
-//     // Error handling
-//     if(errorTriggered())
-//     {
-//       return hardware_interface::return_type::ERROR;
-//     }
-//   }
-//   for(int i = 0; i < joint_count_; i++)
-//   {
-//     // Read
-//     encoder_positions_[i] = state_.actual_positions[i];
-//     encoder_commands_[i] = state_.remote_positions[i];
-//     // Store previous positions
-//     old_positions_[i] = positions_[i];
-//     // Convert encoder ticks to meters
-//     positions_[i] = encoder_positions_[i] / conversion_;
-//     // Calculate velocity
-//     velocities_[i] = (positions_[i] - old_positions_[i]) / period.seconds();
-//     // Calculate effort
-//     efforts_[i] = state_.speeds[i] / 100 * rated_effort_;
-//   }
-//   if(activated_)
-//   {
-//     // Command
-//     if(!executeCommand())
-//     {
-//       return hardware_interface::return_type::ERROR;
-//     }
-//   }
-
-//   return hardware_interface::return_type::OK;
-// }
 hardware_interface::return_type
 EwellixHardwareInterface::read(const rclcpp::Time& time, const rclcpp::Duration& period)
 {
