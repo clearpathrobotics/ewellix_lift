@@ -60,8 +60,8 @@ EwellixSerial::EwellixSerial(std::string port, int baud_rate, int timeout):
  */
 EwellixSerial::~EwellixSerial()
 {
-  deactivate();
-  close();
+  this->deactivate();
+  this->close();
 }
 
 
@@ -125,7 +125,7 @@ EwellixSerial::activate()
   std::vector<uint8_t> response;
   std::vector<uint8_t> data;
 
-  return call(Command::OPEN, parameters, response, data);
+  return this->call(Command::OPEN, parameters, response, data);
 }
 
 /**
@@ -140,7 +140,7 @@ EwellixSerial::deactivate()
   std::vector<uint8_t> response;
   std::vector<uint8_t> data;
 
-  return call(Command::ABORT, parameters, response, data);
+  return this->call(Command::ABORT, parameters, response, data);
 }
 
 /**
@@ -155,7 +155,7 @@ EwellixSerial::cycle()
   std::vector<uint8_t> response;
   std::vector<uint8_t> data;
 
-  return call(Command::CYCLIC, parameters, response, data);
+  return this->call(Command::CYCLIC, parameters, response, data);
 }
 
 /**
@@ -245,7 +245,7 @@ EwellixSerial::cycle1(int a1_position, int a2_position, std::vector<uint8_t> &da
   this->appendShort(parameters, size);
   this->appendVector(parameters, write_data);
 
-  return call(Command::CYCLIC, parameters, response, data);
+  return this->call(Command::CYCLIC, parameters, response, data);
 }
 
 /**
@@ -327,7 +327,7 @@ EwellixSerial::cycle2(const std::vector<int> positions, std::vector<uint8_t> &da
 
   std::vector<uint8_t> write_data = {CyclicObject::OBJECT_2};
   this->appendIntegerVector(write_data, positions);
-  for(int i = int(positions.size()); i < 6; i++)
+  for(size_t i = positions.size(); i < 6; i++)
   {
     this->appendInteger(write_data, 0);
   }
@@ -337,7 +337,7 @@ EwellixSerial::cycle2(const std::vector<int> positions, std::vector<uint8_t> &da
   this->appendShort(parameters, size);
   this->appendVector(parameters, write_data);
 
-  return call(Command::CYCLIC, parameters, response, data);
+  return this->call(Command::CYCLIC, parameters, response, data);
 }
 
 /**
@@ -356,7 +356,7 @@ EwellixSerial::get(uint16_t field, std::vector<uint8_t> &data)
 
   this->appendShort(parameters, static_cast<uint16_t>(field));
 
-  return call(Command::DATA_GET, parameters, response, data);
+  return this->call(Command::DATA_GET, parameters, response, data);
 }
 
 /**
@@ -379,7 +379,7 @@ EwellixSerial::set(uint16_t field, const std::vector<uint8_t> data)
   this->appendShort(parameters, field);
   this->appendVector(parameters, data);
 
-  return call(Command::DATA_TRANSFER, parameters, response, empty);
+  return this->call(Command::DATA_TRANSFER, parameters, response, empty);
 }
 
 /**
@@ -400,7 +400,7 @@ EwellixSerial::execute(uint8_t actuator, uint8_t function)
   parameters.push_back(function);
   parameters.push_back(Empty::BYTE);
 
-  return call(Command::EXECUTE_FUNCTION, parameters, response, empty);
+  return this->call(Command::EXECUTE_FUNCTION, parameters, response, empty);
 }
 
 /**
@@ -420,7 +420,7 @@ EwellixSerial::stop(uint8_t actuator, uint8_t mode)
   parameters.push_back(actuator);
   parameters.push_back(mode);
 
-  return call(Command::STOP, parameters, response, empty);
+  return this->call(Command::STOP, parameters, response, empty);
 }
 
 /**
@@ -889,7 +889,7 @@ EwellixSerial::appendIntegerVector(std::vector<uint8_t> &message, const std::vec
 {
   for(auto integer : v)
   {
-    appendInteger(message, integer);
+    this->appendInteger(message, integer);
   }
 }
 
@@ -947,7 +947,7 @@ EwellixSerial::Status1::Status1(const std::vector<uint8_t> data) : code(0),
   available(false), limit_in_out(false), switch1(false), switch2(false),
   motion(false), reached(false), out_position(false), stroke(false)
 {
-  setFromData(data);
+  this->setFromData(data);
 }
 
 /**
@@ -1003,7 +1003,7 @@ EwellixSerial::SCUError::SCUError(const std::vector<uint8_t> data) : code(0),
   ram_dynamic_data_crc(false), ram_calib_data_crc(false), ram_hw_settings_crc(false),
   io_test(false), idf_opsys_error(false)
 {
-  setFromData(data);
+  this->setFromData(data);
 }
 
 /**
@@ -1070,7 +1070,7 @@ EwellixSerial::Cycle1Data::Cycle1Data(const std::vector<uint8_t> data) :
   actual_positions({0, 0}), speeds({0, 0}),
   status({EwellixSerial::Status1(), EwellixSerial::Status1()})
 {
-  setFromData(data);
+  this->setFromData(data);
 }
 
 /**
@@ -1112,7 +1112,7 @@ EwellixSerial::Cycle2Data::Cycle2Data(const std::vector<uint8_t> data) :
   status(std::vector<EwellixSerial::Status1>(6,EwellixSerial::Status1())),
   errors(std::vector<EwellixSerial::SCUError>(6,EwellixSerial::SCUError()))
 {
-  setFromData(data);
+  this->setFromData(data);
 }
 
 /**
