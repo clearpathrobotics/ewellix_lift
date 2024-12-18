@@ -3,4 +3,42 @@
   <!-- Include Macro -->
   <xacro:include filename="$(find ewellix_description)/urdf/ewellix_macro.xacro"/>
 
+  <!-- Arguments -->
+  <arg name="type" default="tlt_x25"/>
+  <arg name="parent" default="base_link"/>
+  <arg name="tf_prefix" default=""/>
+  <arg name="add_plate" default="true"/>
+  <arg name="initial_positions" default="${dict(lower=0.0, upper=0.0)}"/>
+  <arg name="parameters_file" default="$(find ewellix_description)/config/$(arg type).yaml"/>
+  <arg name="generate_ros2_control_tag" default="true"/>
+  <arg name="use_fake_hardware" default="false"/>
+  <arg name="sim_ignition" default="false"/>
+  <arg name="port" default="/dev/ttyUSB0"/>
+  <arg name="baud" default="38400"/>
+  <arg name="timeout" default="1000"/>
+  <arg name="conversion" default="3225"/>
+  <arg name="rated_effort" default="2000"/>
+  <arg name="tolerance" default="0.005"/>
+
+  <!-- Base Link -->
+  <link name="base_link"/>
+
+  <!-- Ewellix Description -->
+  <xacro:ewellix_lift
+    parent="$(arg parent_link)"
+    tf_prefix="$(arg tf_prefix)"
+    add_plate="$(arg add_plate)"
+    initial_positions="$(arg initial_positions)"
+    parameters_file="$(arg parameters_file)"
+    generate_ros2_control_tag="$(arg generate_ros2_control_tag)"
+    use_fake_hardware="$(arg use_fake_hardware)"
+    sim_ignition="$(arg sim_ignition)"
+    port="$(arg port)"
+    baud="$(arg baud)"
+    timeout="$(arg timeout)"
+    conversion="$(arg conversion)"
+    rated_effort="$(arg rated_effort)"
+    tolerance="$(arg tolerance)">
+    <xacro:insert_block name="origin"/>
+  </xacro:ewellix_lift>
 </robot>
