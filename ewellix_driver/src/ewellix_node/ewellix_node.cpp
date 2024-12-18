@@ -33,119 +33,383 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace ewellix_driver
 {
 
-  EwellixNode::EwellixNode(const std::string node_name)
-  : Node(node_name)
+EwellixNode::EwellixNode(const std::string node_name)
+: Node(node_name)
+{
+  // Declare Parameters
+  this->declare_parameter("joint_count", 2);
+  this->declare_parameter("port", "/dev/ftdi_FT61IMGY");
+  this->declare_parameter("timeout", 1000);
+  this->declare_parameter("conversion", 3225);
+  this->declare_parameter("rated_effort", 2000);
+  this->declare_parameter("tolerance", 0.005);
+  this->declare_parameter("frequency", 10);
+
+  // Get Parameters
+  this->get_parameter("joint_count", joint_count_);
+  this->get_parameter("port", port_);
+  this->get_parameter("timeout", timeout_);
+  this->get_parameter("conversion", conversion_);
+  this->get_parameter("rated_effort", rated_effort_);
+  this->get_parameter("tolerance", tolerance_);
+  this->get_parameter("frequency", frequency_);
+
+
+  // Initialize Variables
+  encoder_positions_ = std::vector<int>(joint_count_, 0);
+  encoder_commands_ = std::vector<int>(joint_count_, 0);
+  speed_ = std::vector<uint16_t>(joint_count_, 0);
+  speed_commands_ = std::vector<uint16_t>(joint_count_, 0);
+  positions_, position_commands_, old_positions_, velocities_, efforts_ = std::vector<double>(joint_count_, 0);
+  activated_ = false;
+  in_motion_ = false;
+  async_error_ = false;
+  async_thread_shutdown_ = false;
+
+  run_timer_ = this->create_wall_timer(
+    std::chrono::milliseconds(int(1000/frequency_)), std::bind(&EwellixNode::run, this));
+
+  // Create serial port
+  ewellix_serial_ = std::make_unique<EwellixSerial>(port_, baud_, timeout_);
+
+  // Open Serial
+  if(!ewellix_serial_->open())
   {
-    run_timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(250), std::bind(&EwellixNode::run, this));
-    ewellix_serial_ = new EwellixSerial("/dev/ftdi_FT61IMGY", 38400, 1000);
-    ewellix_serial_->open();
-    if (!ewellix_serial_->activate())
-    {
-      RCLCPP_INFO(this->get_logger(), "Failed to activate remote communication.");
-      exit(1);
-    }
-    RCLCPP_INFO(this->get_logger(), "Successfully activated remote communication.");
-
-    if (!ewellix_serial_->cycle())
-    {
-      RCLCPP_INFO(this->get_logger(), "Failed to cycle remote communication.");
-      exit(1);
-    }
-    RCLCPP_INFO(this->get_logger(), "Successfully cycled remote communication.");
-
-    if (!ewellix_serial_->setCyclicObject2())
-    {
-      RCLCPP_INFO(this->get_logger(), "Failed to set CyclicObject2.");
-      exit(1);
-    }
-    RCLCPP_INFO(this->get_logger(), "Successfully set CyclicObject2");
-
-    position_a1_ = 0;
-    position_a2_ = 0;
-    execute_ = false;
-    moving_ = false;
-
-    subExecute_ = this->create_subscription<std_msgs::msg::Int32>(
-      "execute",
-      10,
-      std::bind(&EwellixNode::executeCallback, this, std::placeholders::_1)
-    );
-
-    ewellix_serial_->stopAll();
+    RCLCPP_FATAL(this->get_logger(), "Failed to open port communication.");
+    exit(1);
   }
 
-  void
-  EwellixNode::executeCallback(const std_msgs::msg::Int32 &msg)
+  // Activate communication
+  if (!ewellix_serial_->activate())
   {
-    position_a1_ = msg.data;
-    position_a2_ = msg.data;
-    execute_ = true;
+    RCLCPP_FATAL(this->get_logger(), "Failed to activate remote communication.");
+    exit(1);
+  }
+  RCLCPP_INFO(this->get_logger(), "Successfully activated remote communication.");
+
+  // Initial Cycle
+  if (!ewellix_serial_->cycle())
+  {
+    RCLCPP_FATAL(this->get_logger(), "Failed to cycle remote communication.");
+    exit(1);
+  }
+  RCLCPP_INFO(this->get_logger(), "Successfully cycled remote communication.");
+
+  // Setup CyclicObject2 to send and receive lift state
+  if (!ewellix_serial_->setCyclicObject2())
+  {
+    RCLCPP_FATAL(this->get_logger(), "Failed to set CyclicObject2.");
+    exit(1);
+  }
+  RCLCPP_INFO(this->get_logger(), "Successfully set CyclicObject2");
+
+  // Stop to clear movement flags.
+  if (!ewellix_serial_->stopAll())
+  {
+    RCLCPP_FATAL(this->get_logger(), "Failed to stop all actuators.");
+    exit(1);
+  }
+  RCLCPP_INFO(this->get_logger(), "Successfully stopped all actuators.");
+
+  // Start thread
+  async_thread_ = std::make_shared<std::thread>(&EwellixNode::asyncThread, this);
+
+  // Setup ROS Interfaces
+  subCommand_ = this->create_subscription<std_msgs::msg::Int32>(
+    "command",
+    10,
+    std::bind(&EwellixNode::commandCallback, this, std::placeholders::_1)
+  );
+}
+
+void
+EwellixNode::commandCallback(const std_msgs::msg::Int32 &msg)
+{
+  for (int i = 0; i < joint_count_; i++)
+  {
+    position_commands_[i] = msg.data / (joint_count_ * conversion_);
+  }
+}
+
+void
+EwellixNode::run()
+{
+  std::chrono::steady_clock::time_point start;
+  std::chrono::steady_clock::time_point end;
+  std::string elapsed;
+  std::vector<uint8_t> data;
+
+
+}
+
+/**
+ * Cycle to update state
+ */
+bool
+EwellixNode::updateState()
+{
+  // Convert commands
+  convertCommands();
+
+  // Cycle Communication to keep alive
+  if(!ewellix_serial_->cycle2(encoder_commands_, data_))
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to cycle2 EwellixSerial port.");
+    return false;
   }
 
-  void
-  EwellixNode::run()
+  // Update state from response data
+  state_.setFromData(data_);
+
+  return true;
+}
+
+/**
+ * Execute command
+ */
+bool
+EwellixNode::executeCommand()
+{
+  // Stop
+  if(!outOfPosition() && in_motion_ && !inMotion())
   {
-    std::chrono::steady_clock::time_point start;
-    std::chrono::steady_clock::time_point end;
-    std::string elapsed;
-    std::vector<uint8_t> data;
-
-    // cycle2
-    start = std::chrono::steady_clock::now();
-    if(!ewellix_serial_->cycle2({position_a1_, position_a2_}, data))
+    RCLCPP_DEBUG(rclcpp::get_logger("EwellixNode"), "Stop!");
+    if(!ewellix_serial_->stopAll())
     {
-      RCLCPP_INFO(this->get_logger(), "Failed to cycle2 remote communication.");
-      exit(1);
+      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send stop.");
+      return false;
     }
-    end = std::chrono::steady_clock::now();
-    RCLCPP_INFO(this->get_logger(), "Successfully cycled remote communication.");
-
-    EwellixSerial::Cycle2Data data_cycle2(data);
-
-    elapsed = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
-
-    RCLCPP_INFO(this->get_logger(), std::string(
-      " elapsed: " + elapsed + "ms"
-      " remote_a1: " + std::to_string(data_cycle2.remote_positions[0]) +
-      " remote_a2: " + std::to_string(data_cycle2.remote_positions[1]) +
-      " pose_a1:" + std::to_string(data_cycle2.actual_positions[0]) +
-      " pose_a2:" + std::to_string(data_cycle2.actual_positions[1]) +
-      " speed_a1:" + std::to_string(data_cycle2.speeds[0]) +
-      " speed_a2:" + std::to_string(data_cycle2.speeds[1]) +
-      " status1_a1:" + std::to_string(data_cycle2.status[0].code) +
-      " status1_a2:" + std::to_string(data_cycle2.status[1].code) +
-      " error1: " + std::to_string(data_cycle2.errors[0].code) +
-      " error2: " + std::to_string(data_cycle2.errors[1].code) +
-      " error3: " + std::to_string(data_cycle2.errors[2].code) +
-      " error4: " + std::to_string(data_cycle2.errors[3].code) +
-      " error5: " + std::to_string(data_cycle2.errors[4].code)
-    ).c_str());
-
-    if(moving_ &&
-      data_cycle2.speeds[0] == 0 && data_cycle2.speeds[1] == 0 &&
-      abs(data_cycle2.actual_positions[0] - position_a1_) < 10 &&
-      abs(data_cycle2.actual_positions[1] - position_a2_) < 10)
-    {
-      moving_ = false;
-      start = std::chrono::steady_clock::now();
-      ewellix_serial_->stopAll();
-      end = std::chrono::steady_clock::now();
-      elapsed = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
-      RCLCPP_INFO(this->get_logger(), "STOP! elapsed %s ms", elapsed.c_str());
-    }
-
-    if(!moving_ && execute_)
-    {
-      start = std::chrono::steady_clock::now();
-      moving_ = ewellix_serial_->executeAllRemote();
-      end = std::chrono::steady_clock::now();
-      elapsed = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
-      execute_ = false;
-      RCLCPP_INFO(this->get_logger(), "EXECUTE! elapsed %s ms", elapsed.c_str());
-    }
-
+    in_motion_ = false;
   }
+
+  // Execute Motion
+  if(outOfPosition() && !in_motion_)
+  {
+    RCLCPP_DEBUG(rclcpp::get_logger("EwellixNode"), "Moving!");
+    if(!ewellix_serial_->executeAllRemote())
+    {
+      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send execute command.");
+      return false;
+    }
+    in_motion_ = true;
+  }
+
+  return true;
+}
+
+/**
+ * Async communication thread
+ */
+void
+EwellixNode::asyncThread()
+{
+  async_thread_shutdown_ = false;
+  while(!async_thread_shutdown_)
+  {
+    if(activated_)
+    {
+      // Update
+      if(!updateState())
+      {
+        async_error_ = true;
+      }
+      // Command
+      if(!executeCommand())
+      {
+        async_error_ = true;
+      }
+    }
+  }
+}
+
+/**
+ * Out of Position
+ *
+ * Check if all joints are out of the tolerance boundaries.
+ */
+bool
+EwellixNode::outOfPosition()
+{
+  for(int i = 0; i < joint_count_; i++)
+  {
+    if((abs(encoder_positions_[i] - encoder_commands_[i]) > (tolerance_ * conversion_)))
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Check if speed readings are above zero
+ */
+bool
+EwellixNode::inMotion()
+{
+  bool moving = false;
+  for(int i = 0; i < joint_count_; i++)
+  {
+    moving |= state_.speeds[i] > 0;
+  }
+  return moving;
+}
+
+/**
+ * Convert position commands to encoder commands
+ */
+void
+EwellixNode::convertCommands()
+{
+  for(int i = 0; i < joint_count_; i++)
+  {
+    encoder_commands_[i] = position_commands_[i] * conversion_;
+    if (encoder_commands_[i] < EwellixSerial::EncoderLimit::LOWER)
+    {
+      encoder_commands_[i] = EwellixSerial::EncoderLimit::LOWER;
+    }
+    if (encoder_commands_[i] > EwellixSerial::EncoderLimit::UPPER)
+    {
+      encoder_commands_[i] = EwellixSerial::EncoderLimit::UPPER;
+    }
+  }
+}
+
+/**
+ * Check errors in state
+ *
+ * @return true if there are errors.
+ */
+bool
+EwellixNode::errorTriggered()
+{
+  EwellixSerial::SCUError scu_error = state_.errors[0];
+  if(scu_error.code == 0 && async_error_ == false)
+  {
+    return false;
+  }
+  if(scu_error.fault_ram)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "CRC error with ROM test. Faulty ROM. Motions are stopped and the control unit carries out a reset.");
+  }
+  if(scu_error.fault_rom)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with RAM test. Faulty RAM. Motions are stopped and the control unit carries out a reset.");
+  }
+  if(scu_error.fault_cpu)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with CPU test. Faulty CPU. Motions are stopped and the control unit carries out a reset.");
+  }
+  if(scu_error.stack_overrun)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "STACK overrun detected. Motions are stopped (fast stop) and the control unit carries out a reset.");
+  }
+  if(scu_error.sequence_error)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Program sequence error. Watchdog reset. Motions are stopped (fast stop) and the control unit carries out a reset.");
+  }
+  if(scu_error.hand_switch_short)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with hand switch test. Short detected in hand switch. Only occurs if hand switch is parameterized as 'safe'. Motions are stopped (fast stop).");
+  }
+  if(scu_error.binary_inputs_short)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with binary inputs. Short detected between binary inputs. Only occurs if binary inputs are parameterized as safe and no analogue input is parameterized. Motions are stopped (fast stop).");
+  }
+  if(scu_error.faulty_relay)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with relay and FET tests. Faulty relay or FET. Test performed at start of motion. Motion not executed.");
+  }
+  if(scu_error.move_enable_comms)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with communication with MoveEnable controller. No reply form MoveEnable controller. Motions stopped (fast stop).");
+  }
+  if(scu_error.move_enable_incorrect)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with MoveEnable output test. The MoveEnable controller output is incorrect. Motions stopped (fast stop).");
+  }
+  if(scu_error.over_temperature)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Over-temperature detected at rectifier or FET. Motions stopped (fast stop).");
+  }
+  if(scu_error.battery_discharge)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Switching off due to excessive discharge of battery. Motions stopped (fast stop). Control unit switches itself off.");
+  }
+  if(scu_error.over_current)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Total current is exceeded. Occurs if motion in process. Motions stopped (fast stop). Bit reset in the next motion.");
+  }
+  if(scu_error.drive_1_error)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
+  }
+  if(scu_error.drive_2_error)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
+  }
+  if(scu_error.drive_3_error)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
+  }
+  if(scu_error.drive_4_error)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
+  }
+  if(scu_error.drive_5_error)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
+  }
+  if(scu_error.drive_6_error)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
+  }
+  if(scu_error.position_difference)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Position between drives too great. Only if synchronized parallel run is parameterized. Motion not started. If motion ins progress the motion is stopped (fast stop). Bit reset on next motion.");
+  }
+  if(scu_error.remote_timeout)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Remote communication timeout. Depends on SafetyMode set at activation.");
+  }
+  if(scu_error.lockbox_comm_error)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Locking box I2C communication error. Only if locking box parameterized as 'safe'. Motion not performed or stopped");
+  }
+  if(scu_error.ram_config_data_crc)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "RAM copy of EEPROM configuration data indicates incorrect CRC. Motion not performed or stopped.");
+  }
+  if(scu_error.ram_user_data_crc)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "RAM copy of EEPROM user data indicates incorrect CRC. Motion not performed or stopped.");
+  }
+  if(scu_error.ram_lockbox_data_crc)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "EEPROM locking box data indicates incorrect CRC. Motion not performed or stopped.");
+  }
+  if(scu_error.ram_dynamic_data_crc)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "RAM copy of EEPROM dynamic data indicate incorrect CRC. Motion not performed or stopped.");
+  }
+  if(scu_error.ram_calib_data_crc)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "RAM copy of EEPROM calibration data indicate incorrect CRC. Motion not performed or stopped.");
+  }
+  if(scu_error.ram_hw_settings_crc)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "RAM copy of EEPROM HW settings indicate incorrect CRC. Motion not performed or stopped.");
+  }
+  if(scu_error.io_test)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "IO test performed if no motion is active. Motion not performed.");
+  }
+  if(scu_error.idf_opsys_error)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "IDF operating system error. Motion not performed or stopped.");
+  }
+  RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Try to move lift with remote. If not moving, reset lift by power-cycling and holding both UP and DOWN buttons for 5+ seconds.");
+  return true;
+}
 
 }
 
