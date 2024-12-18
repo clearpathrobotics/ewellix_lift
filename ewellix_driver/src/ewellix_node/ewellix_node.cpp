@@ -60,7 +60,11 @@ EwellixNode::EwellixNode(const std::string node_name)
   encoder_commands_ = std::vector<int>(joint_count_, 0);
   speed_ = std::vector<uint16_t>(joint_count_, 0);
   speed_commands_ = std::vector<uint16_t>(joint_count_, 0);
-  positions_, position_commands_, old_positions_, velocities_, efforts_ = std::vector<double>(joint_count_, 0);
+  positions_ = std::vector<double>(joint_count_, 0);
+  position_commands_ = std::vector<double>(joint_count_, 0);
+  old_positions_ = std::vector<double>(joint_count_, 0);
+  velocities_ = std::vector<double>(joint_count_, 0);
+  efforts_ = std::vector<double>(joint_count_, 0);
   activated_ = false;
   in_motion_ = false;
   async_error_ = false;
