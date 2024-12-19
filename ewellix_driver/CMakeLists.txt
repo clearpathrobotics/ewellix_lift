@@ -11,6 +11,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(ewellix_interfaces REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -21,6 +22,7 @@ find_package(serial REQUIRED)
 include_directories(include)
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
+  ewellix_interfaces
   hardware_interface
   pluginlib
   rclcpp

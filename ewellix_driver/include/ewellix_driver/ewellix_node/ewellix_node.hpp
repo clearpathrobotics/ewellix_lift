@@ -38,6 +38,9 @@
 #include <thread>
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/int32.hpp"
+#include "ewellix_interfaces/msg/error.hpp"
+#include "ewellix_interfaces/msg/state.hpp"
+#include "ewellix_interfaces/msg/status.hpp"
 #include "ewellix_driver/ewellix_serial/ewellix_serial.hpp"
 
 namespace ewellix_driver
@@ -103,6 +106,9 @@ private:
   EwellixSerial::Cycle2Data state_;
 
   rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr subCommand_;
+  rclcpp::Publisher<ewellix_interfaces::msg::Error>::SharedPtr pubError_;
+  rclcpp::Publisher<ewellix_interfaces::msg::State>::SharedPtr pubState_;
+  rclcpp::Publisher<ewellix_interfaces::msg::Status>::SharedPtr pubStatus_;
 };
 
 } // namespace ewellix_driver
