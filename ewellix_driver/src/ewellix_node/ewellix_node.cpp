@@ -39,6 +39,7 @@ EwellixNode::EwellixNode(const std::string node_name)
   // Declare Parameters
   this->declare_parameter("joint_count", 2);
   this->declare_parameter("port", "/dev/ftdi_FT61IMGY");
+  this->declare_parameter("baud", 38400);
   this->declare_parameter("timeout", 1000);
   this->declare_parameter("conversion", 3225.0);
   this->declare_parameter("rated_effort", 2000.0);
@@ -48,6 +49,7 @@ EwellixNode::EwellixNode(const std::string node_name)
   // Get Parameters
   this->get_parameter("joint_count", joint_count_);
   this->get_parameter("port", port_);
+  this->get_parameter("baud", baud_);
   this->get_parameter("timeout", timeout_);
   this->get_parameter("conversion", conversion_);
   this->get_parameter("rated_effort", rated_effort_);
@@ -55,9 +57,8 @@ EwellixNode::EwellixNode(const std::string node_name)
   this->get_parameter("frequency", frequency_);
 
   RCLCPP_INFO(this->get_logger(),
-  "Parameters:\n  joint_count: %d\n  port: %s\n  timeout: %d\n  conversion: %f\n  rated_effort: %f\n  tolerance: %f\n  frequency: %f", joint_count_, port_.c_str(), timeout_, conversion_, rated_effort_, tolerance_, frequency_
+  "\nParameters:\n  joint_count: %d\n  port: %s\n  baud: %d\n  timeout: %d\n  conversion: %f\n  rated_effort: %f\n  tolerance: %f\n  frequency: %f", joint_count_, port_.c_str(), baud_, timeout_, conversion_, rated_effort_, tolerance_, frequency_
   );
-
 
   // Initialize Variables
   encoder_positions_ = std::vector<int>(joint_count_, 0);
@@ -73,9 +74,6 @@ EwellixNode::EwellixNode(const std::string node_name)
   in_motion_ = false;
   async_error_ = false;
   async_thread_shutdown_ = false;
-
-  run_timer_ = this->create_wall_timer(
-    std::chrono::milliseconds(int(1000/frequency_)), std::bind(&EwellixNode::run, this));
 
   // Create serial port
   ewellix_serial_ = std::make_unique<EwellixSerial>(port_, baud_, timeout_);
@@ -120,15 +118,23 @@ EwellixNode::EwellixNode(const std::string node_name)
   }
   RCLCPP_INFO(this->get_logger(), "Successfully stopped all actuators.");
 
-  // Start thread
-  async_thread_ = std::make_shared<std::thread>(&EwellixNode::asyncThread, this);
-
   // Setup ROS Interfaces
   subCommand_ = this->create_subscription<std_msgs::msg::Int32>(
     "command",
     10,
     std::bind(&EwellixNode::commandCallback, this, std::placeholders::_1)
   );
+
+  pubState_ = this->create_publisher<ewellix_interfaces::msg::State>("state", 10);
+
+  // Publish loop
+  run_timer_ = this->create_wall_timer(
+    std::chrono::milliseconds(int(1000/frequency_)), std::bind(&EwellixNode::run, this));
+
+  // Start thread
+  activated_ = true;
+
+  async_thread_ = std::make_shared<std::thread>(&EwellixNode::asyncThread, this);
 }
 
 void
@@ -143,12 +149,20 @@ EwellixNode::commandCallback(const std_msgs::msg::Int32 &msg)
 void
 EwellixNode::run()
 {
-  std::chrono::steady_clock::time_point start;
-  std::chrono::steady_clock::time_point end;
-  std::string elapsed;
-  std::vector<uint8_t> data;
-
-
+  ewellix_interfaces::msg::State msg_state;
+  msg_state.actual_positions = state_.actual_positions;
+  msg_state.remote_positions = state_.remote_positions;
+  msg_state.speeds = state_.speeds;
+  msg_state.currents = state_.currents;
+  for (size_t i = 0; i < state_.status.size(); i++)
+  {
+    msg_state.status.push_back(state_.status[i].code);
+  }
+  for (size_t i = 0; i < state_.errors.size(); i++)
+  {
+    msg_state.errors.push_back(state_.errors[i].code);
+  }
+  pubState_->publish(msg_state);
 }
 
 /**
