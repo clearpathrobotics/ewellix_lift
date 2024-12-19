@@ -432,6 +432,10 @@ EwellixSerial::stop(uint8_t actuator, uint8_t mode)
 bool
 EwellixSerial::checkResponseChecksum(const std::vector<uint8_t> response)
 {
+  if(response.size() < 2)
+  {
+    return false;
+  }
   // Extract CRC from Response
   uint8_t crc_lsb = *(response.end() - 2);
   uint8_t crc_msb = *(response.end() - 1);
@@ -643,7 +647,6 @@ EwellixSerial::receive(const std::vector<uint8_t> message, std::vector<uint8_t> 
     {
       current = std::chrono::steady_clock::now();
       elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(current-start);
-
       receiving &= elapsed.count() < timeout_;
     }
   }
