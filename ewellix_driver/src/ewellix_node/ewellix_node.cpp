@@ -40,10 +40,10 @@ EwellixNode::EwellixNode(const std::string node_name)
   this->declare_parameter("joint_count", 2);
   this->declare_parameter("port", "/dev/ftdi_FT61IMGY");
   this->declare_parameter("timeout", 1000);
-  this->declare_parameter("conversion", 3225);
-  this->declare_parameter("rated_effort", 2000);
+  this->declare_parameter("conversion", 3225.0);
+  this->declare_parameter("rated_effort", 2000.0);
   this->declare_parameter("tolerance", 0.005);
-  this->declare_parameter("frequency", 10);
+  this->declare_parameter("frequency", 10.0);
 
   // Get Parameters
   this->get_parameter("joint_count", joint_count_);
@@ -53,6 +53,10 @@ EwellixNode::EwellixNode(const std::string node_name)
   this->get_parameter("rated_effort", rated_effort_);
   this->get_parameter("tolerance", tolerance_);
   this->get_parameter("frequency", frequency_);
+
+  RCLCPP_INFO(this->get_logger(),
+  "Parameters:\n  joint_count: %d\n  port: %s\n  timeout: %d\n  conversion: %f\n  rated_effort: %f\n  tolerance: %f\n  frequency: %f", joint_count_, port_.c_str(), timeout_, conversion_, rated_effort_, tolerance_, frequency_
+  );
 
 
   // Initialize Variables
@@ -82,6 +86,7 @@ EwellixNode::EwellixNode(const std::string node_name)
     RCLCPP_FATAL(this->get_logger(), "Failed to open port communication.");
     exit(1);
   }
+  RCLCPP_INFO(this->get_logger(), "Successfully opened port.");
 
   // Activate communication
   if (!ewellix_serial_->activate())
