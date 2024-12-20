@@ -38,9 +38,11 @@
 #include <thread>
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/int32.hpp"
+#include "ewellix_interfaces/msg/command.hpp"
 #include "ewellix_interfaces/msg/error.hpp"
 #include "ewellix_interfaces/msg/state.hpp"
 #include "ewellix_interfaces/msg/status.hpp"
+#include "ewellix_interfaces/srv/serial.hpp"
 #include "ewellix_driver/ewellix_serial/ewellix_serial.hpp"
 
 namespace ewellix_driver
