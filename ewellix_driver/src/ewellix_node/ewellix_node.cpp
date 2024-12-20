@@ -38,7 +38,7 @@ EwellixNode::EwellixNode(const std::string node_name)
 {
   // Declare Parameters
   this->declare_parameter("joint_count", 2);
-  this->declare_parameter("port", "/dev/ftdi_FT61IMGY");
+  this->declare_parameter("port", "/dev/ttyUSB0");
   this->declare_parameter("baud", 38400);
   this->declare_parameter("timeout", 1000);
   this->declare_parameter("conversion", 3225.0);
