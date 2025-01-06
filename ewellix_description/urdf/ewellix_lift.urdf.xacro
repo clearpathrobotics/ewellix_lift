@@ -39,6 +39,6 @@
     conversion="$(arg conversion)"
     rated_effort="$(arg rated_effort)"
     tolerance="$(arg tolerance)">
-    <xacro:insert_block name="origin"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
   </xacro:ewellix_lift>
 </robot>
