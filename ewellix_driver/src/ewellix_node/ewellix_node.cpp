@@ -89,8 +89,12 @@ EwellixNode::EwellixNode(const std::string node_name)
   // Activate communication
   if (!ewellix_serial_->activate())
   {
-    RCLCPP_FATAL(this->get_logger(), "Failed to activate remote communication.");
-    exit(1);
+    RCLCPP_INFO(this->get_logger(), "Failed to activate. Trying again...");
+    if (!ewellix_serial_->activate())
+    {
+      RCLCPP_FATAL(this->get_logger(), "Failed to activate remote communication.");
+      exit(1);
+    }
   }
   RCLCPP_INFO(this->get_logger(), "Successfully activated remote communication.");
 
@@ -119,7 +123,7 @@ EwellixNode::EwellixNode(const std::string node_name)
   RCLCPP_INFO(this->get_logger(), "Successfully stopped all actuators.");
 
   // Setup ROS Interfaces
-  subCommand_ = this->create_subscription<std_msgs::msg::Int32>(
+  subCommand_ = this->create_subscription<ewellix_interfaces::msg::Command>(
     "command",
     10,
     std::bind(&EwellixNode::commandCallback, this, std::placeholders::_1)
@@ -138,11 +142,24 @@ EwellixNode::EwellixNode(const std::string node_name)
 }
 
 void
-EwellixNode::commandCallback(const std_msgs::msg::Int32 &msg)
+EwellixNode::commandCallback(const ewellix_interfaces::msg::Command &msg)
 {
+  float command;
+  if(msg.ticks > 0)
+  {
+    command = msg.ticks / conversion_;
+  }
+  else if(msg.meters > 0)
+  {
+    command = msg.meters;
+  }
+  else
+  {
+    command = 0;
+  }
   for (int i = 0; i < joint_count_; i++)
   {
-    position_commands_[i] = msg.data / (joint_count_ * conversion_);
+    position_commands_[i] = command;
   }
 }
 
@@ -255,7 +272,7 @@ EwellixNode::outOfPosition()
 {
   for(int i = 0; i < joint_count_; i++)
   {
-    if((abs(encoder_positions_[i] - encoder_commands_[i]) > (tolerance_ * conversion_)))
+    if((abs(state_.actual_positions[i] - encoder_commands_[i]) > (tolerance_ * conversion_)))
     {
       return true;
     }
