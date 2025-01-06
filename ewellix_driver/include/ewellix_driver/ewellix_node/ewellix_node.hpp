@@ -55,7 +55,7 @@ public:
   EwellixNode(const std::string node_name);
 
   void run();
-  void commandCallback(const std_msgs::msg::Int32 &msg);
+  void commandCallback(const ewellix_interfaces::msg::Command &msg);
 
   bool
   updateState();
@@ -107,7 +107,7 @@ private:
   std::vector<uint8_t> data_;
   EwellixSerial::Cycle2Data state_;
 
-  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr subCommand_;
+  rclcpp::Subscription<ewellix_interfaces::msg::Command>::SharedPtr subCommand_;
   rclcpp::Publisher<ewellix_interfaces::msg::Error>::SharedPtr pubError_;
   rclcpp::Publisher<ewellix_interfaces::msg::State>::SharedPtr pubState_;
   rclcpp::Publisher<ewellix_interfaces::msg::Status>::SharedPtr pubStatus_;
