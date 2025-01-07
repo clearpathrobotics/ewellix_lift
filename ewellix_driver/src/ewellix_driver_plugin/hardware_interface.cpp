@@ -578,29 +578,11 @@ EwellixHardwareInterface::errorTriggered()
   {
     RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Total current is exceeded. Occurs if motion in process. Motions stopped (fast stop). Bit reset in the next motion.");
   }
-  if(scu_error.drive_1_error)
+  if(scu_error.drive_1_error || scu_error.drive_2_error || scu_error.drive_3_error || scu_error.drive_4_error || scu_error.drive_5_error || scu_error.drive_6_error )
   {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
-  }
-  if(scu_error.drive_2_error)
-  {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
-  }
-  if(scu_error.drive_3_error)
-  {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
-  }
-  if(scu_error.drive_4_error)
-  {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
-  }
-  if(scu_error.drive_5_error)
-  {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
-  }
-  if(scu_error.drive_6_error)
-  {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
+    RCLCPP_WARN_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
+    in_motion_ = false;
+    return false;
   }
   if(scu_error.position_difference)
   {
