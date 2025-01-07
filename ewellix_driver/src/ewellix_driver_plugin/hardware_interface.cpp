@@ -103,6 +103,13 @@ EwellixHardwareInterface::on_init(const hardware_interface::HardwareInfo& system
                    joint.state_interfaces[2].name.c_str(), hardware_interface::HW_IF_EFFORT);
       return hardware_interface::CallbackReturn::ERROR;
     }
+    joint_count_++;
+  }
+
+  joint_count_ *= 2;
+
+  for(int i = 0; i < joint_count_; i++)
+  {
     encoder_positions_.push_back(0);
     encoder_commands_.push_back(0);
     speed_.push_back(0);
@@ -112,8 +119,8 @@ EwellixHardwareInterface::on_init(const hardware_interface::HardwareInfo& system
     old_positions_.push_back(0);
     velocities_.push_back(0);
     efforts_.push_back(0);
-    joint_count_++;
   }
+
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -342,6 +349,9 @@ EwellixHardwareInterface::read(const rclcpp::Time& time, const rclcpp::Duration&
     // Read
     encoder_positions_[i] = state_.actual_positions[i];
     encoder_commands_[i] = state_.remote_positions[i];
+    RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"),
+      "%d/%d %d|%d|%d %d", encoder_positions_[i], encoder_commands_[i],
+      outOfPosition(), in_motion_, inMotion(), state_.status[i].code);
     // Store previous positions
     old_positions_[i] = positions_[i];
     // Convert encoder ticks to meters
@@ -488,7 +498,7 @@ EwellixHardwareInterface::inMotion()
 void
 EwellixHardwareInterface::convertCommands()
 {
-  for(int i = 0; i < joint_count_; i++)
+  for(int i = 0; i < joint_count_; i += 2)
   {
     encoder_commands_[i] = position_commands_[i] * conversion_;
     if (encoder_commands_[i] < EwellixSerial::EncoderLimit::LOWER)
@@ -499,6 +509,7 @@ EwellixHardwareInterface::convertCommands()
     {
       encoder_commands_[i] = EwellixSerial::EncoderLimit::UPPER;
     }
+    encoder_commands_[i + 1] = encoder_commands_[i];
   }
 }
 
