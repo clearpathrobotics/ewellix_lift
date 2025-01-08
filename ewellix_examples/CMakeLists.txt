@@ -9,6 +9,7 @@ ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
   ${PROJECT_NAME}/up_down
+  ${PROJECT_NAME}/up_down_meters
   DESTINATION lib/${PROJECT_NAME}
 )
 
