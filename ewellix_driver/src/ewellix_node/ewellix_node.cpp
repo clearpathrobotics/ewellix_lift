@@ -253,6 +253,11 @@ EwellixNode::asyncThread()
       {
         async_error_ = true;
       }
+      // Error
+      if(errorTriggered())
+      {
+        async_error_ = true;
+      }
       // Command
       if(!executeCommand())
       {
@@ -377,31 +382,29 @@ EwellixNode::errorTriggered()
   }
   if(scu_error.over_current)
   {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Total current is exceeded. Occurs if motion in process. Motions stopped (fast stop). Bit reset in the next motion.");
+    RCLCPP_WARN_STREAM(rclcpp::get_logger("EwellixNode"), "Total current is exceeded. Occurs if motion in process. Motions stopped (fast stop). Bit reset in the next motion.");
   }
-  if(scu_error.drive_1_error)
+  if(scu_error.drive_1_error | scu_error.drive_2_error | scu_error.drive_3_error | scu_error.drive_4_error | scu_error.drive_5_error | scu_error.drive_6_error)
   {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
-  }
-  if(scu_error.drive_2_error)
-  {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
-  }
-  if(scu_error.drive_3_error)
-  {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
-  }
-  if(scu_error.drive_4_error)
-  {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
-  }
-  if(scu_error.drive_5_error)
-  {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
-  }
-  if(scu_error.drive_6_error)
-  {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
+    int drive = 0;
+    drive |= scu_error.drive_1_error * (1 << 1);
+    drive |= scu_error.drive_2_error * (1 << 2);
+    drive |= scu_error.drive_3_error * (1 << 3);
+    drive |= scu_error.drive_4_error * (1 << 4);
+    drive |= scu_error.drive_5_error * (1 << 5);
+    drive |= scu_error.drive_6_error * (1 << 6);
+    RCLCPP_WARN(rclcpp::get_logger("EwellixNode"), "Error with drive #%d. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.", drive);
+    RCLCPP_WARN(rclcpp::get_logger("EwellixNode"), "Attempting to recover...");
+    if(!ewellix_serial_->executeAllOut())
+    {
+      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send execute command.");
+      return true;
+    }
+    in_motion_ = true;
+    async_error_ = false;
+    position_commands_[0] = EwellixSerial::EncoderLimit::UPPER;
+    position_commands_[1] = EwellixSerial::EncoderLimit::UPPER;
+    return false;
   }
   if(scu_error.position_difference)
   {
