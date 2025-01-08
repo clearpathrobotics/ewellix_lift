@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import qos_profile_system_default
+
+from ewellix_interfaces.msg import Command, State
+from std_msgs.msg import UInt8, UInt32MultiArray
+
+
+class EwellixUpDown(Node):
+
+    def __init__(self):
+        super().__init__('ewellix_up_down')
+
+        self.max_ticks = 800
+        self.min_ticks = 0
+        self.error_count = 0
+        self.error_ticks = []
+
+        self.error_count_pub = self.create_publisher(
+            UInt8,
+            'error_count',
+            qos_profile_system_default
+        )
+
+        self.error_ticks_pub = self.create_publisher(
+            UInt32MultiArray,
+            'error_ticks',
+            qos_profile_system_default
+        )
+
+        self.command_pub = self.create_publisher(
+            Command,
+            'command',
+            qos_profile_system_default
+        )
+
+        self.state_sub = self.create_subscription(
+            State,
+            'state',
+            self.state_callback,
+            qos_profile_system_default
+        )
+
+    def state_callback(self, msg: State):
+        current_ticks = msg.actual_positions[0]
+        error = msg.errors[0]
+
+        if error > 0:
+            self.error_count += 1
+            self.error_ticks.append(current_ticks)
+
+        error_ticks_msg = UInt32MultiArray()
+        error_ticks_msg.data = self.error_ticks
+        self.error_ticks_pub.publish(error_ticks_msg)
+
+        error_count_msg = UInt8()
+        error_count_msg.data = self.error_count
+        self.error_count_pub.publish(error_count_msg)
+
+        command_msg = Command()
+        if current_ticks > self.max_ticks - 15 and current_ticks < self.max_ticks + 15:
+            command_msg.ticks = self.min_ticks
+            self.command_pub.publish(command_msg)
+        elif current_ticks > self.min_ticks - 15 and current_ticks < self.min_ticks + 15:
+            command_msg.ticks = self.max_ticks
+            self.command_pub.publish(command_msg)
+
+
+def main():
+    rclpy.init()
+
+    node = EwellixUpDown()
+
+    rclpy.spin(node)
+
+    node.destroy_node()
+
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
