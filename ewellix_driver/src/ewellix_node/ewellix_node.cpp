@@ -71,7 +71,6 @@ EwellixNode::EwellixNode(const std::string node_name)
   velocities_ = std::vector<double>(joint_count_, 0);
   efforts_ = std::vector<double>(joint_count_, 0);
   activated_ = false;
-  in_motion_ = false;
   async_error_ = false;
   async_thread_shutdown_ = false;
 
@@ -210,28 +209,22 @@ EwellixNode::updateState()
 bool
 EwellixNode::executeCommand()
 {
-  // Stop
-  if(!outOfPosition() && in_motion_ && !inMotion())
+  // Execute Motion
+  if(outOfPosition() && !inMotion())
   {
-    RCLCPP_DEBUG(rclcpp::get_logger("EwellixNode"), "Stop!");
+    RCLCPP_DEBUG(rclcpp::get_logger("EwellixNode"), "Moving!");
     if(!ewellix_serial_->stopAll())
     {
       RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send stop.");
       return false;
     }
-    in_motion_ = false;
-  }
-
-  // Execute Motion
-  if(outOfPosition() && !in_motion_)
-  {
-    RCLCPP_DEBUG(rclcpp::get_logger("EwellixNode"), "Moving!");
     if(!ewellix_serial_->executeAllRemote())
     {
       RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send execute command.");
       return false;
     }
-    in_motion_ = true;
+    // Sleep to Allow Motion to begin
+    usleep(100000);
   }
 
   return true;
@@ -393,17 +386,19 @@ EwellixNode::errorTriggered()
     drive |= scu_error.drive_4_error * (1 << 4);
     drive |= scu_error.drive_5_error * (1 << 5);
     drive |= scu_error.drive_6_error * (1 << 6);
-    RCLCPP_WARN(rclcpp::get_logger("EwellixNode"), "Error with drive #%d. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.", drive);
+    RCLCPP_WARN(rclcpp::get_logger("EwellixNode"), "Error with drive #%d. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.", int(std::sqrt(drive)));
     RCLCPP_WARN(rclcpp::get_logger("EwellixNode"), "Attempting to recover...");
+    if(!ewellix_serial_->stopAll())
+    {
+      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send stop.");
+      return true;
+    }
     if(!ewellix_serial_->executeAllOut())
     {
       RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send execute command.");
       return true;
     }
-    in_motion_ = true;
     async_error_ = false;
-    position_commands_[0] = EwellixSerial::EncoderLimit::UPPER;
-    position_commands_[1] = EwellixSerial::EncoderLimit::UPPER;
     return false;
   }
   if(scu_error.position_difference)
