@@ -58,7 +58,6 @@ EwellixHardwareInterface::on_init(const hardware_interface::HardwareInfo& system
 
   info_ = system_info;
   joint_count_ = 0;
-  in_motion_ = false;
   activated_ = false;
   async_error_ = false;
   async_thread_shutdown_ = false;
@@ -338,8 +337,8 @@ EwellixHardwareInterface::read(const rclcpp::Time& time, const rclcpp::Duration&
 {
   std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
   std::chrono::steady_clock::time_point end;
-  // Error handling
-  if(errorTriggered())
+
+  if(async_error_)
   {
     return hardware_interface::return_type::ERROR;
   }
@@ -407,28 +406,23 @@ EwellixHardwareInterface::updateState()
 bool
 EwellixHardwareInterface::executeCommand()
 {
-  // Stop
-  if(!outOfPosition() && in_motion_ && !inMotion())
+  // Execute Motion
+  if(outOfPosition() && !inMotion())
   {
-    RCLCPP_DEBUG(rclcpp::get_logger("EwellixHardwareInterface"), "Stop!");
+    RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Stop!");
     if(!ewellix_serial_->stopAll())
     {
       RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to send stop.");
       return false;
     }
-    in_motion_ = false;
-  }
-
-  // Execute Motion
-  if(outOfPosition() && !in_motion_)
-  {
-    RCLCPP_DEBUG(rclcpp::get_logger("EwellixHardwareInterface"), "Moving!");
+    RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Moving!");
     if(!ewellix_serial_->executeAllRemote())
     {
       RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to send execute command.");
       return false;
     }
-    in_motion_ = true;
+    // Wait for motion
+    usleep(50000);
   }
 
   return true;
@@ -447,6 +441,11 @@ EwellixHardwareInterface::asyncThread()
     {
       // Update
       if(!updateState())
+      {
+        async_error_ = true;
+      }
+      // Error handling
+      if(errorTriggered())
       {
         async_error_ = true;
       }
@@ -580,8 +579,26 @@ EwellixHardwareInterface::errorTriggered()
   }
   if(scu_error.drive_1_error || scu_error.drive_2_error || scu_error.drive_3_error || scu_error.drive_4_error || scu_error.drive_5_error || scu_error.drive_6_error )
   {
-    RCLCPP_WARN_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Error with drive. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.");
-    in_motion_ = false;
+    int drive = 0;
+    drive |= scu_error.drive_1_error * (1 << 1);
+    drive |= scu_error.drive_2_error * (1 << 2);
+    drive |= scu_error.drive_3_error * (1 << 3);
+    drive |= scu_error.drive_4_error * (1 << 4);
+    drive |= scu_error.drive_5_error * (1 << 5);
+    drive |= scu_error.drive_6_error * (1 << 6);
+    RCLCPP_WARN(rclcpp::get_logger("EwellixNode"), "Error with drive #%d. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.", int(std::sqrt(drive)));
+    RCLCPP_WARN(rclcpp::get_logger("EwellixNode"), "Attempting to recover...");
+    if(!ewellix_serial_->stopAll())
+    {
+      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send stop.");
+      return true;
+    }
+    if(!ewellix_serial_->executeAllOut())
+    {
+      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send execute command.");
+      return true;
+    }
+    async_error_ = false;
     return false;
   }
   if(scu_error.position_difference)
