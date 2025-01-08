@@ -321,6 +321,24 @@ class EwellixSerial
     };
 
     /**
+     * Execute move All actuators to OUT
+     * @return true if command sent successfully.
+     */
+    bool executeAllOut()
+    {
+      return execute(Actuator::ALL, Function::OUT);
+    };
+
+    /**
+     * Execute move All actuators to IN
+     * @return true if command sent successfully.
+     */
+    bool executeAllIn()
+    {
+      return execute(Actuator::ALL, Function::IN);
+    };
+
+    /**
      * Stop All actuators without speed ramp.
      * @return true if command sent successfully.
      */
