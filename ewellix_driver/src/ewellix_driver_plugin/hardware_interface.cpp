@@ -399,13 +399,13 @@ EwellixHardwareInterface::executeCommand()
   // Execute Motion
   if(outOfPosition() && !inMotion())
   {
-    RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Stop!");
+    RCLCPP_DEBUG(rclcpp::get_logger("EwellixHardwareInterface"), "Stop!");
     if(!ewellix_serial_->stopAll())
     {
       RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to send stop.");
       return false;
     }
-    RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Moving!");
+    RCLCPP_DEBUG(rclcpp::get_logger("EwellixHardwareInterface"), "Moving!");
     if(!ewellix_serial_->executeAllRemote())
     {
       RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to send execute command.");
