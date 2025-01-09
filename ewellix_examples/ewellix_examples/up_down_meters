@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import rclpy
+import rclpy.logging
 from rclpy.node import Node
 from rclpy.qos import qos_profile_system_default
 
@@ -13,6 +14,10 @@ class EwellixUpDown(Node):
     def __init__(self):
         super().__init__('ewellix_up_down')
 
+        self.declare_parameter('lift_number', 0)
+
+        self.num = self.get_parameter('lift_number')
+
         self.max_meters = 0.27
         self.min_meters = 0.2
         self.error_count = 0
@@ -20,7 +25,7 @@ class EwellixUpDown(Node):
 
         self.command_pub = self.create_publisher(
             Float64MultiArray,
-            '/r100_0599/manipulators/lift_0_position_controller/commands',
+            f'/r100_0599/manipulators/lift_{self.num.get_parameter_value().integer_value}_position_controller/commands',
             qos_profile_system_default
         )
 
@@ -32,10 +37,11 @@ class EwellixUpDown(Node):
         )
 
     def state_callback(self, msg: JointState):
-        if 'lift_0_lower_joint' not in msg.name:
+        if f'lift_{self.num.get_parameter_value().integer_value}_lower_joint' not in msg.name:
             return
 
-        current_meters = msg.position[2]
+        index = msg.name.index(f'lift_{self.num.get_parameter_value().integer_value}_lower_joint')
+        current_meters = msg.position[index]
 
         command_msg = Float64MultiArray()
         if current_meters > self.max_meters - 0.005 and current_meters < self.max_meters + 0.005:
