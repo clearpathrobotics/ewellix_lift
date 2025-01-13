@@ -1,34 +1,33 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+<robot name="ewellix_lift" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <!-- Include Macro -->
   <xacro:include filename="$(find ewellix_description)/urdf/ewellix_macro.xacro"/>
 
   <!-- Arguments -->
-  <arg name="type" default="tlt_x25"/>
-  <arg name="parent" default="base_link"/>
-  <arg name="tf_prefix" default=""/>
-  <arg name="add_plate" default="true"/>
-  <arg name="initial_positions" default="${dict(lower=0.0, upper=0.0)}"/>
-  <arg name="parameters_file" default="$(find ewellix_description)/config/$(arg type).yaml"/>
-  <arg name="generate_ros2_control_tag" default="true"/>
-  <arg name="use_fake_hardware" default="false"/>
-  <arg name="sim_ignition" default="false"/>
-  <arg name="port" default="/dev/ttyUSB0"/>
-  <arg name="baud" default="38400"/>
-  <arg name="timeout" default="1000"/>
-  <arg name="conversion" default="3225"/>
-  <arg name="rated_effort" default="2000"/>
-  <arg name="tolerance" default="0.005"/>
+  <xacro:arg name="type" default="tlt_x25"/>
+  <xacro:arg name="tf_prefix" default="lift_"/>
+  <xacro:arg name="add_plate" default="true"/>
+  <xacro:arg name="initial_positions" default="${dict(lower=0.0, upper=0.0)}"/>
+  <xacro:arg name="parameters_file" default="$(find ewellix_description)/config/$(arg type).yaml"/>
+  <xacro:arg name="generate_ros2_control_tag" default="true"/>
+  <xacro:arg name="gazebo_controllers" default="$(find ewellix_description)/config/control/jtc.yaml"/>
+  <xacro:arg name="use_fake_hardware" default="false"/>
+  <xacro:arg name="sim_ignition" default="false"/>
+  <xacro:arg name="port" default="/dev/ttyUSB0"/>
+  <xacro:arg name="baud" default="38400"/>
+  <xacro:arg name="timeout" default="1000"/>
+  <xacro:arg name="conversion" default="3225"/>
+  <xacro:arg name="rated_effort" default="2000"/>
+  <xacro:arg name="tolerance" default="0.005"/>
 
   <!-- Base Link -->
   <link name="base_link"/>
 
   <!-- Ewellix Description -->
   <xacro:ewellix_lift
-    parent="$(arg parent_link)"
+    parent="base_link"
     tf_prefix="$(arg tf_prefix)"
     add_plate="$(arg add_plate)"
-    initial_positions="$(arg initial_positions)"
     parameters_file="$(arg parameters_file)"
     generate_ros2_control_tag="$(arg generate_ros2_control_tag)"
     use_fake_hardware="$(arg use_fake_hardware)"
@@ -38,7 +37,26 @@
     timeout="$(arg timeout)"
     conversion="$(arg conversion)"
     rated_effort="$(arg rated_effort)"
-    tolerance="$(arg tolerance)">
+    tolerance="$(arg tolerance)"
+    >
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </xacro:ewellix_lift>
+
+  <!-- Gazebo -->
+  <xacro:if value="$(arg sim_ignition)">
+    <gazebo>
+      <plugin filename="libign_ros2_control-system.so" name="ign_ros2_control::IgnitionROS2ControlPlugin">
+        <parameters>$(arg gazebo_controllers)</parameters>
+      </plugin>
+    </gazebo>
+
+    <gazebo>
+      <plugin filename="libignition-gazebo-pose-publisher-system.so" name="ignition::gazebo::systems::PosePublisher">
+        <publish_link_pose>true</publish_link_pose>
+        <publish_nested_model_pose>true</publish_nested_model_pose>
+        <use_pose_vector_msg>true</use_pose_vector_msg>
+        <update_frequency>50</update_frequency>
+      </plugin>
+    </gazebo>
+  </xacro:if>
 </robot>
