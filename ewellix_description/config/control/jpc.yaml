@@ -11,5 +11,4 @@ controller_manager:
 lift_position_controller:
   ros__parameters:
     joints:
-      - lift_upper_joint
       - lift_lower_joint
