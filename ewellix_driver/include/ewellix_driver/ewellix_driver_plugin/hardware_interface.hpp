@@ -38,6 +38,8 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
+#include "rclcpp_lifecycle/lifecycle_publisher.hpp"
+#include "std_msgs/msg/string.hpp"
 
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/system_interface.hpp"
@@ -45,6 +47,7 @@
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 
 #include "ewellix_driver/ewellix_serial/ewellix_serial.hpp"
+#include "ewellix_interfaces/msg/state.hpp"
 
 
 namespace ewellix_driver
