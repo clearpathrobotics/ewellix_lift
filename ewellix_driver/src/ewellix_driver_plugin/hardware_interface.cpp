@@ -348,9 +348,6 @@ EwellixHardwareInterface::read(const rclcpp::Time& time, const rclcpp::Duration&
     // Read
     encoder_positions_[i] = state_.actual_positions[i];
     encoder_commands_[i] = state_.remote_positions[i];
-    RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"),
-      "%d/%d %d|%d|%d %d", encoder_positions_[i], encoder_commands_[i],
-      outOfPosition(), in_motion_, inMotion(), state_.status[i].code);
     // Store previous positions
     old_positions_[i] = positions_[i];
     // Convert encoder ticks to meters
