@@ -1,0 +1,25 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: ewellix_description
+    relative_path: urdf/ewellix_lift.urdf.xacro
+  srdf:
+    relative_path: config/ewellix_lift.srdf
+  package_settings:
+    author_name: Luis Camero
+    author_email: lcamero@clearpathrobotics.com
+    generated_timestamp: 1736539893
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
