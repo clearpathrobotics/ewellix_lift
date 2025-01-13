@@ -12,4 +12,3 @@ moveit_simple_controller_manager:
     default: true
     joints:
       - lift_lower_joint
-      - lift_upper_joint
