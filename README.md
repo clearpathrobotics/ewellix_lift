@@ -2,6 +2,8 @@
 
 ROS2 driver for the Ewellix TLT lifts.
 
+![Ewellix TLT lifts, from 300mm to 700mm models.](./docs/all_lifts)
+
 ## Setup
 Add user to `dialout` group to ensure the driver has permissions to access the serial device.
 ```
