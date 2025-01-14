@@ -2,7 +2,7 @@
 
 ROS2 driver for the Ewellix TLT lifts.
 
-![Ewellix TLT lifts, from 300mm to 700mm models.](./docs/all_lifts)
+![Ewellix TLT lifts, from 300mm to 700mm models.](./docs/all_lifts.png)
 
 ## Setup
 Add user to `dialout` group to ensure the driver has permissions to access the serial device.
@@ -44,17 +44,17 @@ If both are defined, ticks takes priority over meters.
 ## Ewellix Hardware Interface Usage
 If the `generate_ros2_control_tag` is enabled in the `ewllix_lift` macro defined in *ewellix_macro.xacro*, the hardware interface will be loaded by the controller manager.
 
-Using the `position_controllers/JointGroupPositionController` a position commands to each actuator.
+Using the `position_controllers/JointGroupPositionController` send a position command to the lift's actuators.
 
 Moving the lift:
 ```
 ros2 topic pub /lift_position_controller/commands std_msgs/msg/Float64MultiArray "layout:
   dim: []
   data_offset: 0
-data: [0.0, 0.0]"
+data: [0.0]"
 ```
 `data` list specifies the desired position of the lower and upper joint.
-> Note: the lower and upper joint must be set to the same position.
+> Note, the command sent is applied to both actuators. Therefore, on the TLT500, send a 0.25 command to extend the lift to 500mm.
 
 ## References
 1. [Ewellix serial control unit (SCU) installation, operation, and maintenance manual.](https://medialibrary.ewellix.com/asset/16223)
