@@ -25,13 +25,13 @@ class EwellixUpDown(Node):
 
         self.command_pub = self.create_publisher(
             Float64MultiArray,
-            f'/r100_0599/manipulators/lift_{self.num.get_parameter_value().integer_value}_position_controller/commands',
+            f'lift_{self.num.get_parameter_value().integer_value}_position_controller/commands',
             qos_profile_system_default
         )
 
         self.joint_state_sub = self.create_subscription(
             JointState,
-            '/r100_0599/platform/joint_states',
+            'joint_states',
             self.state_callback,
             qos_profile_system_default
         )
@@ -45,10 +45,10 @@ class EwellixUpDown(Node):
 
         command_msg = Float64MultiArray()
         if current_meters > self.max_meters - 0.005 and current_meters < self.max_meters + 0.005:
-            command_msg.data = [self.min_meters, self.min_meters]
+            command_msg.data = [self.min_meters]
             self.command_pub.publish(command_msg)
         elif current_meters > self.min_meters - 0.005 and current_meters < self.min_meters + 0.005:
-            command_msg.data = [self.max_meters, self.max_meters]
+            command_msg.data = [self.max_meters]
             self.command_pub.publish(command_msg)
 
 
