@@ -2,8 +2,8 @@
 Changelog for package ewellix_description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.0 (2025-01-15)
+------------------
 * Add launch parameter to modify lift description
 * Add friction and initialize lift extended
 * Add all meshes and description configs

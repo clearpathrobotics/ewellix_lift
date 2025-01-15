@@ -2,8 +2,8 @@
 Changelog for package ewellix_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.0 (2025-01-15)
+------------------
 * Removed logging
 * Remove INFO logs
 * Switch to stop before execute motion
