@@ -59,7 +59,19 @@ def generate_launch_description():
             'config',
             'control',
             'jtc.yaml'
-        ])
+        ]),
+        description='ROS 2 controller file to pass to Gazebo.'
+    )
+
+    lift_parameters = LaunchConfiguration('lift_parameters')
+    arg_lift_parameters = DeclareLaunchArgument(
+        'lift_parameters',
+        default_value=PathJoinSubstitution([
+            package,
+            'config',
+            'tlt_x25.yaml'
+        ]),
+        description='Lift description configuration file.'
     )
 
     # Paths
@@ -87,7 +99,10 @@ def generate_launch_description():
             'true',
             ' ',
             'gazebo_controllers:=',
-            control_config
+            control_config,
+            ' ',
+            'parameters_file:=',
+            lift_parameters
         ]
     )
 
@@ -108,9 +123,10 @@ def generate_launch_description():
 
     ld = LaunchDescription()
     # Args
+    ld.add_action(arg_use_sim_time)
+    ld.add_action(arg_lift_parameters)
     ld.add_action(arg_control_config)
     ld.add_action(arg_robot_description_command)
-    ld.add_action(arg_use_sim_time)
     # Nodes
     ld.add_action(lift_state_publisher)
     return ld
