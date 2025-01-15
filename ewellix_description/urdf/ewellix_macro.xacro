@@ -152,12 +152,12 @@
         xyz="0.0 0.0 ${parameters.lower.offset}"
         rpy="0.0 0.0 0.0"/>
       <limit
-        effort="${parameters.lower.joint.limit.effort * 1000}"
+        effort="${parameters.lower.joint.limit.effort}"
         lower="${parameters.lower.joint.limit.lower}"
         upper="${parameters.lower.joint.limit.upper}"
         velocity="${parameters.lower.joint.limit.velocity}"/>
       <axis xyz="0 0 1"/>
-      <dynamics friction="0.0" damping="0.0"/>
+      <dynamics friction="0.01" damping="0.01"/>
     </joint>
 
     <!-- Upper Tower -->
@@ -172,23 +172,6 @@
       </material>
     </xacro:ewellix_link>
 
-    <!--
-    <joint name="${tf_prefix}upper_joint" type="prismatic">
-      <child link="${tf_prefix}upper_link"/>
-      <parent link="${tf_prefix}lower_link"/>
-      <origin
-        xyz="0.0 0.0 ${parameters.upper.offset}"
-        rpy="0.0 0.0 0.0"/>
-      <limit
-        effort="${parameters.upper.joint.limit.effort * 1000}"
-        lower="${parameters.upper.joint.limit.lower}"
-        upper="${parameters.upper.joint.limit.upper}"
-        velocity="${parameters.upper.joint.limit.velocity}"/>
-      <axis xyz="0 0 1"/>
-      <dynamics friction="0.0" damping="0.0"/>
-    </joint>
-     -->
-
     <joint name="${tf_prefix}upper_joint" type="prismatic">
       <child link="${tf_prefix}upper_link"/>
       <parent link="${tf_prefix}lower_link"/>
@@ -197,11 +180,11 @@
         rpy="0.0 0.0 0.0"/>
       <axis xyz="0 0 1"/>
       <limit
-        effort="${parameters.upper.joint.limit.effort * 1000}"
+        effort="${parameters.upper.joint.limit.effort}"
         lower="${parameters.upper.joint.limit.lower}"
         upper="${parameters.upper.joint.limit.upper}"
         velocity="${parameters.upper.joint.limit.velocity}"/>
-      <dynamics friction="0.0" damping="0.0"/>
+      <dynamics friction="0.01" damping="0.01"/>
       <mimic joint="${tf_prefix}lower_joint"/>
     </joint>
 
@@ -241,7 +224,7 @@
         <joint name="${tf_prefix}lower_joint">
           <command_interface name="position"/>
           <state_interface name="position">
-            <param name="initial_value">0.0001</param>
+            <param name="initial_value">${parameters.lower.joint.limit.upper}</param>
           </state_interface>
           <state_interface name="velocity"/>
           <state_interface name="effort"/>

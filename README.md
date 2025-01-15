@@ -56,6 +56,45 @@ data: [0.0]"
 `data` list specifies the desired position of the lower and upper joint.
 > Note, the command sent is applied to both actuators. Therefore, on the TLT500, send a 0.25 command to extend the lift to 500mm.
 
+## Example: Visualization
+To visualize a model of the lifts in RViz, use the example `rviz.launch.py`.
+
+```
+ros2 launch ewellix_examples rviz.launch.py
+```
+
+By default, the TLT x25 (2000N, 500mm) model is selected.
+
+To change the model, select a different parameter file. The parameter files can be found in the [config](./ewellix_description/config/) directory of the description package.
+
+For example, to visualize the TLT x13 model, navigate to the `ewellix_lift` directory and run the following command:
+```
+ros2 launch ewellix_examples rviz.launch.py lift_parameters:=$PWD/ewellix_description/config/tlt_x13.yaml
+```
+
+
+## Example: Simulation without MoveIt!
+To simulate the lift with a simple controller, use the defaults on the `simulation.launch.py`.
+
+```
+ros2 launch ewellix_examples simulation.launch.py
+```
+
+To change the model, the same parameter is available as in the visualization example:
+```
+ros2 launch ewellix_examples simulation.launch.py lift_parameters:=$PWD/ewellix_description/config/tlt_x13.yaml
+```
+
+By default, the controller loaded to the ROS 2 control plugin is the `JointGroupPositionController` using the [`jpc.yaml`](./ewellix_description/config/control/jpc.yaml).
+
+
+## Example: Simulation with MoveIt!
+To simulate the lift with the `JointTrajectoryController` compatible with MoveIt!, use the following parameters:
+
+```
+ros2 launch ewellix_examples simulation.launch.py controller_file:=jtc.yaml launch_moveit:=true
+```
+
 ## References
 1. [Ewellix serial control unit (SCU) installation, operation, and maintenance manual.](https://medialibrary.ewellix.com/asset/16223)
 2. [Ewellix RS232 interface for serial control unit.](https://medialibrary.ewellix.com/asset/16222)
