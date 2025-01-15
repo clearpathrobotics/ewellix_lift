@@ -77,12 +77,12 @@ ros2 launch ewellix_examples rviz.launch.py lift_parameters:=$PWD/ewellix_descri
 To simulate the lift with a simple controller, use the defaults on the `simulation.launch.py`.
 
 ```
-ros2 launch ewellix_examples simulation.launch.py
+ros2 launch ewellix_examples simulation.launch.py rviz:=true
 ```
 
 To change the model, the same parameter is available as in the visualization example:
 ```
-ros2 launch ewellix_examples simulation.launch.py lift_parameters:=$PWD/ewellix_description/config/tlt_x13.yaml
+ros2 launch ewellix_examples simulation.launch.py lift_parameters:=$PWD/ewellix_description/config/tlt_x13.yaml rviz:=true
 ```
 
 By default, the controller loaded to the ROS 2 control plugin is the `JointGroupPositionController` using the [`jpc.yaml`](./ewellix_description/config/control/jpc.yaml).
@@ -92,7 +92,7 @@ By default, the controller loaded to the ROS 2 control plugin is the `JointGroup
 To simulate the lift with the `JointTrajectoryController` compatible with MoveIt!, use the following parameters:
 
 ```
-ros2 launch ewellix_examples simulation.launch.py controller_file:=jtc.yaml launch_moveit:=true
+ros2 launch ewellix_examples simulation.launch.py controller_file:=jtc.yaml moveit:=true rviz:=true
 ```
 
 ## References
