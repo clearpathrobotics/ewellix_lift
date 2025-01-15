@@ -2,8 +2,8 @@
 Changelog for package ewellix_examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.0 (2025-01-15)
+------------------
 * Use GroupAction instead of PythonExpression conditions
 * Set default velocity scaling factor to 1.0
 * Standardize up_down_meters script
