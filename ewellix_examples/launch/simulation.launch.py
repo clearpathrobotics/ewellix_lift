@@ -38,7 +38,7 @@ from launch.actions import (
     IncludeLaunchDescription,
     SetEnvironmentVariable,
 )
-from launch.conditions import LaunchConfigurationEquals, IfCondition
+from launch.conditions import LaunchConfigurationEquals, IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -67,7 +67,7 @@ def generate_launch_description():
     arg_launch_moveit = DeclareLaunchArgument(
         'moveit',
         choices=['true', 'false'],
-        default_value='true',
+        default_value='false',
         description='If true, launch MoveIt MoveGroup'
     )
 
@@ -122,7 +122,7 @@ def generate_launch_description():
             arguments=['-name', 'lift',
                        '-x', '0.0',
                        '-y', '0.0',
-                       '-z', '0.0',
+                       '-z', '1.0',
                        '-Y', '0.0',
                        '-topic', 'robot_description'],
             output='screen'
@@ -184,28 +184,52 @@ def generate_launch_description():
                         ])
 
     # Launch RViz
-    config_rviz = PathJoinSubstitution([
+    config_rviz_moveit = PathJoinSubstitution([
                      FindPackageShare('ewellix_examples'),
                      'config',
                      'moveit.rviz'])
-    rviz_node = Node(package='rviz2',
-                     executable='rviz2',
-                     name='rviz2',
-                     arguments=['-d', config_rviz],
-                     parameters=[{'use_sim_time': True}],
-                     output='screen',
-                     condition=IfCondition(launch_rviz))
 
-    # Launch MoveIt
-    moveit_node = IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([
-                PathJoinSubstitution([
-                    FindPackageShare('ewellix_moveit_config'),
-                    'launch',
-                    'move_group_sim.launch.py'
+    config_rviz_example = PathJoinSubstitution([
+                     FindPackageShare('ewellix_examples'),
+                     'config',
+                     'example.rviz'])
+
+    example_group_action = GroupAction([
+            Node(
+                package='rviz2',
+                executable='rviz2',
+                name='rviz2_example',
+                arguments=['-d', config_rviz_example],
+                parameters=[{'use_sim_time': True}],
+                output='screen',
+                condition=IfCondition(launch_rviz)
+            )
+        ],
+        condition=UnlessCondition(launch_moveit)
+    )
+
+    moveit_group_action = GroupAction([
+            Node(
+                package='rviz2',
+                executable='rviz2',
+                name='rviz2_moveit',
+                arguments=['-d', config_rviz_moveit],
+                parameters=[{'use_sim_time': True}],
+                output='screen',
+                condition=IfCondition(launch_rviz)
+            ),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource([
+                    PathJoinSubstitution([
+                        FindPackageShare('ewellix_moveit_config'),
+                        'launch',
+                        'move_group_sim.launch.py'
+                    ])
                 ])
-            ]),
-            condition=IfCondition(launch_moveit))
+            )
+        ],
+        condition=IfCondition(launch_moveit)
+    )
 
     ld = LaunchDescription()
     ld.add_action(arg_controller_file)
@@ -216,6 +240,6 @@ def generate_launch_description():
     ld.add_action(group_action_spawn_robot)
     ld.add_action(group_action_controllers)
     ld.add_action(clock_bridge)
-    ld.add_action(rviz_node)
-    ld.add_action(moveit_node)
+    ld.add_action(example_group_action)
+    ld.add_action(moveit_group_action)
     return ld
