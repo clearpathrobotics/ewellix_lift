@@ -45,6 +45,8 @@ EwellixNode::EwellixNode(const std::string node_name)
   this->declare_parameter("rated_effort", 2000.0);
   this->declare_parameter("tolerance", 0.005);
   this->declare_parameter("frequency", 10.0);
+  this->declare_parameter("encoder_upper_limit", EwellixSerial::EncoderLimit::UPPER);
+  this->declare_parameter("encoder_lower_limit", EwellixSerial::EncoderLimit::LOWER);
 
   // Get Parameters
   this->get_parameter("joint_count", joint_count_);
@@ -55,6 +57,9 @@ EwellixNode::EwellixNode(const std::string node_name)
   this->get_parameter("rated_effort", rated_effort_);
   this->get_parameter("tolerance", tolerance_);
   this->get_parameter("frequency", frequency_);
+  this->get_parameter("encoder_upper_limit", encoder_upper_limit_);
+  this->get_parameter("encoder_lower_limit", encoder_lower_limit_);
+
 
   RCLCPP_INFO(this->get_logger(),
   "\nParameters:\n  joint_count: %d\n  port: %s\n  baud: %d\n  timeout: %d\n  conversion: %f\n  rated_effort: %f\n  tolerance: %f\n  frequency: %f", joint_count_, port_.c_str(), baud_, timeout_, conversion_, rated_effort_, tolerance_, frequency_
@@ -301,13 +306,13 @@ EwellixNode::convertCommands()
   for(int i = 0; i < joint_count_; i++)
   {
     encoder_commands_[i] = position_commands_[i] * conversion_;
-    if (encoder_commands_[i] < EwellixSerial::EncoderLimit::LOWER)
+    if (encoder_commands_[i] < encoder_lower_limit_)
     {
-      encoder_commands_[i] = EwellixSerial::EncoderLimit::LOWER;
+      encoder_commands_[i] = encoder_lower_limit_;
     }
-    if (encoder_commands_[i] > EwellixSerial::EncoderLimit::UPPER)
+    if (encoder_commands_[i] > encoder_upper_limit_)
     {
-      encoder_commands_[i] = EwellixSerial::EncoderLimit::UPPER;
+      encoder_commands_[i] = encoder_upper_limit_;
     }
   }
 }
