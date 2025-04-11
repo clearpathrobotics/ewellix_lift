@@ -16,10 +16,10 @@
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL CLEARPATH ROBOTICS, INC. BE LIABLE FOR ANY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL CLEARPATH ROBOTICS, INC. BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -34,49 +34,39 @@
 #ifndef EWELLIX_DRIVER__EWELLIX_NODE_HPP_
 #define EWELLIX_DRIVER__EWELLIX_NODE_HPP_
 
-#include <chrono>
-#include <thread>
-#include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/int32.hpp"
+#include "ewellix_driver/ewellix_serial/ewellix_serial.hpp"
 #include "ewellix_interfaces/msg/command.hpp"
 #include "ewellix_interfaces/msg/error.hpp"
 #include "ewellix_interfaces/msg/state.hpp"
 #include "ewellix_interfaces/msg/status.hpp"
 #include "ewellix_interfaces/srv/serial.hpp"
-#include "ewellix_driver/ewellix_serial/ewellix_serial.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/int32.hpp"
+#include <chrono>
+#include <thread>
 
-namespace ewellix_driver
-{
+namespace ewellix_driver {
 
-class EwellixNode
-: public rclcpp::Node
-{
+class EwellixNode : public rclcpp::Node {
 public:
   EwellixNode(const std::string node_name);
 
   void run();
   void commandCallback(const ewellix_interfaces::msg::Command &msg);
 
-  bool
-  updateState();
+  bool updateState();
 
-  bool
-  executeCommand();
+  bool executeCommand();
 
-  void
-  asyncThread();
+  void asyncThread();
 
-  bool
-  outOfPosition();
+  bool outOfPosition();
 
-  bool
-  inMotion();
+  bool inMotion();
 
-  void
-  convertCommands();
+  void convertCommands();
 
-  bool
-  errorTriggered();
+  bool errorTriggered();
 
 private:
   std::string port_;
@@ -91,12 +81,13 @@ private:
   float tolerance_;
   float frequency_;
   rclcpp::TimerBase::SharedPtr run_timer_;
+  EwellixSerial::EncoderLimit encoder_limits_;
 
-  std::vector<int>encoder_positions_, encoder_commands_;
-  std::vector<uint16_t>speed_, speed_commands_;
-  std::vector<double>positions_, position_commands_, old_positions_;
-  std::vector<double>velocities_;
-  std::vector<double>efforts_;
+  std::vector<int> encoder_positions_, encoder_commands_;
+  std::vector<uint16_t> speed_, speed_commands_;
+  std::vector<double> positions_, position_commands_, old_positions_;
+  std::vector<double> velocities_;
+  std::vector<double> efforts_;
 
   std::unique_ptr<EwellixSerial> ewellix_serial_;
 
