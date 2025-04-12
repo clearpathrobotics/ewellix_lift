@@ -90,8 +90,7 @@ private:
   float rated_effort_;
   float tolerance_;
   float frequency_;
-  int encoder_upper_limit_;
-  int encoder_lower_limit_;
+  EwellixSerial::EncoderLimit encoder_limits_;
   rclcpp::TimerBase::SharedPtr run_timer_;
 
   std::vector<int>encoder_positions_, encoder_commands_;
