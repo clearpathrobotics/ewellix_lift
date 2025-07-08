@@ -497,13 +497,13 @@ EwellixHardwareInterface::convertCommands()
   for(int i = 0; i < joint_count_; i += 2)
   {
     encoder_commands_[i] = position_commands_[i] * conversion_;
-    if (encoder_commands_[i] < EwellixSerial::EncoderLimit::LOWER)
+    if (encoder_commands_[i] < encoder_limits_.LOWER)
     {
-      encoder_commands_[i] = EwellixSerial::EncoderLimit::LOWER;
+      encoder_commands_[i] = encoder_limits_.LOWER;
     }
-    if (encoder_commands_[i] > EwellixSerial::EncoderLimit::UPPER)
+    if (encoder_commands_[i] > encoder_limits_.UPPER)
     {
-      encoder_commands_[i] = EwellixSerial::EncoderLimit::UPPER;
+      encoder_commands_[i] = encoder_limits_.UPPER;
     }
     encoder_commands_[i + 1] = encoder_commands_[i];
   }
