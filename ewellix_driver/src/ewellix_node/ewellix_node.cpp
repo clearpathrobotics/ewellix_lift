@@ -118,6 +118,9 @@ EwellixNode::EwellixNode(const std::string node_name)
   }
   RCLCPP_INFO(this->get_logger(), "Successfully set CyclicObject2");
 
+  // Get the initial state of the lift
+  getInitialState();
+
   // Stop to clear movement flags.
   if (!ewellix_serial_->stopAll())
   {
@@ -314,6 +317,27 @@ EwellixNode::convertCommands()
     {
       encoder_commands_[i] = encoder_limits_.UPPER;
     }
+  }
+}
+
+/**
+ * Get initial state of the lift
+ */
+void
+EwellixNode::getInitialState() 
+{
+  std::vector<int> dummy_positions(joint_count_, 0);
+  std::vector<uint8_t> init_data;
+  if (!ewellix_serial_->cycle2(dummy_positions, init_data))
+  {
+    RCLCPP_FATAL(this->get_logger(), "Failed initial cycle2");
+    exit(1);
+  }
+  state_.setFromData(init_data);
+
+  for (int i = 0; i < joint_count_; i++)
+  {
+    position_commands_[i] = state_.actual_positions[i] / conversion_;
   }
 }
 
