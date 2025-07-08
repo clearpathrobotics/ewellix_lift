@@ -180,10 +180,10 @@ class EwellixSerial
       BYTE = 0xFF
     };
 
-    enum EncoderLimit
+    struct EncoderLimit
     {
-      LOWER = 0,
-      UPPER = 865
+      int LOWER = 0;
+      int UPPER = 865;
     };
 
     class Status1

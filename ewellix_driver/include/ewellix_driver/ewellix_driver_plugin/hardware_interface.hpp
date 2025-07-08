@@ -128,6 +128,7 @@ class EwellixHardwareInterface
   float conversion_;
   float rated_effort_;
   float tolerance_;
+  EwellixSerial::EncoderLimit encoder_limits_;
   std::vector<int>encoder_positions_, encoder_commands_;
   std::vector<uint16_t>speed_, speed_commands_;
   std::vector<double>positions_, position_commands_, old_positions_;
