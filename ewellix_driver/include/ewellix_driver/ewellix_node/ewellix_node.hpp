@@ -78,6 +78,9 @@ public:
   bool
   errorTriggered();
 
+  void
+  getInitialState();
+
 private:
   std::string port_;
   int baud_;
