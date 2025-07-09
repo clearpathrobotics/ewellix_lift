@@ -1,0 +1,80 @@
+plate:
+  material:
+    name: "LightGrey"
+    color: "0.7 0.7 0.7 1.0"
+  mesh: ur620/plate.stl
+  max:
+    x: 0.1000
+    y: 0.1000
+    z: 0.0200
+  min:
+    x: -0.1000
+    y: -0.1000
+    z: -0.0000
+  mass: 1.0
+
+base:
+  material:
+    name: "LightGrey"
+    color: "0.7 0.7 0.7 1.0"
+  mesh: ur620/base.stl
+  max:
+    x: 0.0822
+    y: 0.0822
+    z: 0.8386
+  min:
+    x: -0.0822
+    y: -0.0822
+    z: 0.0179
+  mass: 10.0
+  offset: -0.002
+
+lower:
+  material:
+    name: "LightGrey"
+    color: "0.7 0.7 0.7 1.0"
+  mesh: ur620/lower.stl
+  max:
+    x: 0.0742
+    y: 0.0742
+    z: 1.2670
+  min:
+    x: -0.0822
+    y: -0.0819
+    z: 0.4670
+  mass: 10.0
+  offset: 0.027
+  joint:
+    limit:
+      effort: 2000
+      lower: 0.0
+      upper: 0.400
+      velocity: 0.088
+    axis:
+      xyz: "0 0 1"
+
+upper:
+  material:
+    name: "LightGrey"
+    color: "0.7 0.7 0.7 1.0"
+  mesh: ur620/upper.stl
+  max:
+    x: 0.0645
+    y: 0.0645
+    z: 1.6850
+  min:
+    x: -0.0645
+    y: -0.0645
+    z: 0.8470
+  mass: 10.0
+  offset: 0.007
+  joint:
+    limit:
+      effort: 2000
+      lower: 0.0
+      upper: 0.400
+      velocity: 0.088
+    axis:
+      xyz: "0 0 1"
+
+
