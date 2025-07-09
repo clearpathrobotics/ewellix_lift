@@ -12,7 +12,7 @@
   <xacro:arg name="generate_ros2_control_tag" default="true"/>
   <xacro:arg name="gazebo_controllers" default="$(find ewellix_description)/config/control/jtc.yaml"/>
   <xacro:arg name="use_fake_hardware" default="false"/>
-  <xacro:arg name="sim_ignition" default="false"/>
+  <xacro:arg name="sim" default="false"/>
   <xacro:arg name="port" default="/dev/ttyUSB0"/>
   <xacro:arg name="baud" default="38400"/>
   <xacro:arg name="timeout" default="1000"/>
@@ -31,7 +31,7 @@
     parameters_file="$(arg parameters_file)"
     generate_ros2_control_tag="$(arg generate_ros2_control_tag)"
     use_fake_hardware="$(arg use_fake_hardware)"
-    sim_ignition="$(arg sim_ignition)"
+    sim="$(arg sim)"
     port="$(arg port)"
     baud="$(arg baud)"
     timeout="$(arg timeout)"
@@ -43,15 +43,15 @@
   </xacro:ewellix_lift>
 
   <!-- Gazebo -->
-  <xacro:if value="$(arg sim_ignition)">
+  <xacro:if value="$(arg sim)">
     <gazebo>
-      <plugin filename="libign_ros2_control-system.so" name="ign_ros2_control::IgnitionROS2ControlPlugin">
+      <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
         <parameters>$(arg gazebo_controllers)</parameters>
       </plugin>
     </gazebo>
 
     <gazebo>
-      <plugin filename="libignition-gazebo-pose-publisher-system.so" name="ignition::gazebo::systems::PosePublisher">
+      <plugin filename="libgz-sim-pose-publisher-system.so" name="gz::sim::systems::PosePublisher">
         <publish_link_pose>true</publish_link_pose>
         <publish_nested_model_pose>true</publish_nested_model_pose>
         <use_pose_vector_msg>true</use_pose_vector_msg>
