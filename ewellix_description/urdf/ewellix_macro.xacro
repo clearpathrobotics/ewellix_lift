@@ -77,7 +77,7 @@
     parameters_file:='$(find ewellix_description)/config/tlt_x25.yaml'
     generate_ros2_control_tag:=false
     use_fake_hardware:=false
-    sim:=false
+    sim_gazebo:=false
     port='/dev/ttyUSB0'
     baud=38400
     timeout=1000
@@ -203,7 +203,7 @@
     <xacro:if value="${generate_ros2_control_tag}">
       <ros2_control name="${tf_prefix}hardware" type="system">
         <hardware>
-          <xacro:if value="${sim}">
+          <xacro:if value="${sim_gazebo}">
             <plugin>gz_ros2_control/GazeboSimSystem</plugin>
           </xacro:if>
           <xacro:if value="${use_fake_hardware}">
@@ -211,7 +211,7 @@
             <param name="state_following_offset">0.0</param>
             <param name="calculate_dynamics">true</param>
           </xacro:if>
-          <xacro:unless value="${use_fake_hardware or sim}">
+          <xacro:unless value="${use_fake_hardware or sim_gazebo}">
             <plugin>ewellix_driver/EwellixHardwareInterface</plugin>
             <param name="port">${port}</param>
             <param name="baud">${baud}</param>
@@ -229,7 +229,7 @@
           <state_interface name="velocity"/>
           <state_interface name="effort"/>
         </joint>
-        <xacro:if value="${sim or use_fake_hardware}">
+        <xacro:if value="${sim_gazebo or use_fake_hardware}">
           <joint name="${tf_prefix}upper_joint">
             <param name="mimic">${tf_prefix}lower_joint</param>
             <param name="multiplier">1</param>
