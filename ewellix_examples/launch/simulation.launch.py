@@ -74,9 +74,9 @@ def generate_launch_description():
     # Determine all ros packages that are sourced
     packages_paths = [os.path.join(p, 'share') for p in os.getenv('AMENT_PREFIX_PATH').split(':')]
 
-    # Set ignition resource path to include all sourced ros packages
+    # Set gazebo sim resource path to include all sourced ros packages
     gz_sim_resource_path = SetEnvironmentVariable(
-        name='IGN_GAZEBO_RESOURCE_PATH',
+        name='GZ_SIM_RESOURCE_PATH',
         value=[':' + ':'.join(packages_paths)])
 
     # Directories
@@ -100,6 +100,7 @@ def generate_launch_description():
             ('gz_args', ['empty.sdf',
                          ' -r',
                          ' -v 4',
+                         ' --physics-engine gz-physics-bullet-featherstone-plugin'
                          ])
         ]
     )
@@ -180,7 +181,7 @@ def generate_launch_description():
                         name='clock_bridge',
                         output='screen',
                         arguments=[
-                          '/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock'
+                          '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'
                         ])
 
     # Launch RViz
@@ -200,7 +201,7 @@ def generate_launch_description():
                 executable='rviz2',
                 name='rviz2_example',
                 arguments=['-d', config_rviz_example],
-                parameters=[{'use_sim_time': True}],
+                parameters=[{'use_sim_time': False}],
                 output='screen',
                 condition=IfCondition(launch_rviz)
             )
