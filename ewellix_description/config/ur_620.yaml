@@ -77,4 +77,18 @@ upper:
     axis:
       xyz: "0 0 1"
 
-
+mount:
+  material:
+    name: "LightGrey"
+    color: "0.7 0.7 0.7 1.0"
+  mesh: ur620/mount.stl
+  max:
+    x: 0.1255
+    y: 0.1255
+    z: 1.7050
+  min:
+    x: -0.1255
+    y: -0.1255
+    z: 1.6900
+  mass: 2.0
+  offset: 0.0
