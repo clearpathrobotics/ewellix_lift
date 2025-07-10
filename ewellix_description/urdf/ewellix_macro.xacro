@@ -189,15 +189,49 @@
     </joint>
 
     <!-- Mount -->
-    <link name="${tf_prefix}mount"/>
+    <xacro:if value="${parameters.get('mount')}">
+      <!-- Mount: Arm Mounting Plate -->
+      <xacro:ewellix_link
+        name="${tf_prefix}mount_link"
+        mesh="package://ewellix_description/meshes/${parameters.mount.mesh}"
+        maximum="${parameters.mount.max}"
+        minimum="${parameters.mount.min}"
+        mass="${parameters.mount.mass}">
+        <material name="${parameters.mount.material.name}">
+        <color rgba="${parameters.mount.material.color}"/>
+        </material>
+      </xacro:ewellix_link>
 
-    <joint name="${tf_prefix}mount_joint" type="fixed">
-      <child link="${tf_prefix}mount"/>
-      <parent link="${tf_prefix}upper_link"/>
-      <origin
-        xyz="0.0 0.0 ${fabs(parameters.upper.max.z - parameters.upper.min.z)}"
-        rpy="0.0 0.0 0.0"/>
-    </joint>
+      <joint name="${tf_prefix}_mount_link_joint" type="fixed">
+        <child link="${tf_prefix}mount_link"/>
+        <parent link="${tf_prefix}upper_link"/>
+        <origin
+          xyz="0.0 0.0 ${fabs(parameters.upper.max.z - parameters.upper.min.z) + parameters.mount.offset}"
+          rpy="0.0 0.0 0.0"/>
+      </joint>
+
+      <link name="${tf_prefix}mount"/>
+      <joint name="${tf_prefix}mount_joint" type="fixed">
+        <child link="${tf_prefix}mount"/>
+        <parent link="${tf_prefix}mount_link"/>
+        <origin
+          xyz="0.0 0.0 ${fabs(parameters.mount.max.z - parameters.mount.min.z)}"
+          rpy="0.0 0.0 0.0"/>
+      </joint>
+
+    </xacro:if>
+    <xacro:unless value="${parameters.get('mount')}">
+      <!-- Mount: Virtual Link -->
+      <link name="${tf_prefix}mount"/>
+
+      <joint name="${tf_prefix}mount_joint" type="fixed">
+        <child link="${tf_prefix}mount"/>
+        <parent link="${tf_prefix}upper_link"/>
+        <origin
+          xyz="0.0 0.0 ${fabs(parameters.upper.max.z - parameters.upper.min.z)}"
+          rpy="0.0 0.0 0.0"/>
+      </joint>
+    </xacro:unless>
 
     <!-- ROS 2 Controls -->
     <xacro:if value="${generate_ros2_control_tag}">
