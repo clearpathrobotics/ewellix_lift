@@ -12,7 +12,7 @@
 
   <exec_depend>ewellix_interfaces</exec_depend>
   <exec_depend>ewellix_moveit_config</exec_depend>
-  <exec_depend>ign_ros2_control</exec_depend>
+  <exec_depend>gz_ros2_control</exec_depend>
   <exec_depend>ros_gz</exec_depend>
   <exec_depend>rviz2</exec_depend>
 
