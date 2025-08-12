@@ -8,7 +8,7 @@
   <author email="lcamero@clearpathrobotics.com">Luis Camero</author>
   <maintainer email="lcamero@clearpathrobotics.com">Luis Camero</maintainer>
 
-  <license>BSD</license>
+  <license>BSD-3-Clause</license>
 
   <exec_depend>ewellix_interfaces</exec_depend>
 
