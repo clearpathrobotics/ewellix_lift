@@ -13,8 +13,4 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY config launch
-  DESTINATION share/${PROJECT_NAME}
-)
-
 ament_package()
