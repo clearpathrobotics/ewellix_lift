@@ -1,0 +1,5 @@
+repositories:
+  ewellix_lift_common:
+    type: git
+    url: https://github.com/clearpathrobotics/ewellix_lift_common.git
+    version: jazzy
