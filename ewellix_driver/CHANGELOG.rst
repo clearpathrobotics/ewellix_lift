@@ -2,6 +2,19 @@
 Changelog for package ewellix_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Update license in package.xml
+* Merge pull request `#7 <https://github.com/clearpathrobotics/ewellix_lift/issues/7>`_ from Ayush1285/feat/last-position
+  Update the initial state of the lift.
+* Merge pull request `#4 <https://github.com/clearpathrobotics/ewellix_lift/issues/4>`_ from Ayush1285/humble
+  Encoder limits as configurable parameters
+* Fetch prev position
+* Added encoder limit struct
+* Added upper and lower limits as member variables
+* Added encoder lower and upper limits params.
+* Contributors: Ayush Singh, Luis Camero
+
 0.1.0 (2025-01-15)
 ------------------
 * Removed logging
