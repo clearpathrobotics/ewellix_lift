@@ -2,8 +2,8 @@
 Changelog for package ewellix_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.1 (2025-08-22)
+------------------
 * Update license in package.xml
 * Merge pull request `#7 <https://github.com/clearpathrobotics/ewellix_lift/issues/7>`_ from Ayush1285/feat/last-position
   Update the initial state of the lift.

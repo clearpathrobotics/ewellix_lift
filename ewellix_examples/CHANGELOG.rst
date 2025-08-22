@@ -2,8 +2,8 @@
 Changelog for package ewellix_examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.1 (2025-08-22)
+------------------
 * Update license in package.xml
 * Move RViz and Simulation to ewellix_lift_common
 * Contributors: Luis Camero
