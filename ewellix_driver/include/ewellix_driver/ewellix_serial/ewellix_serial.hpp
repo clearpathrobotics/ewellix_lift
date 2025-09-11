@@ -44,6 +44,8 @@
 namespace ewellix_driver
 {
 
+using namespace std::chrono_literals;
+
 class EwellixSerial
 {
   public:
