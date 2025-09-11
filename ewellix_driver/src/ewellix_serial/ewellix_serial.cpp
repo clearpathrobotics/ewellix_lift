@@ -648,6 +648,8 @@ EwellixSerial::receive(const std::vector<uint8_t> message, std::vector<uint8_t> 
       current = std::chrono::steady_clock::now();
       elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(current-start);
       receiving &= elapsed.count() < timeout_;
+      // Sleep!
+      std::this_thread::sleep_for(10ms);
     }
   }
   // Check Checksum from Response
