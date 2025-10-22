@@ -2,8 +2,8 @@
 Changelog for package ewellix_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.2 (2025-10-22)
+------------------
 * Thread sleep
 * Contributors: Luis Camero
 
