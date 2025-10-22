@@ -2,6 +2,9 @@
 Changelog for package ewellix_examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.2.0 (2025-08-20)
 ------------------
 * Update license in package.xml
