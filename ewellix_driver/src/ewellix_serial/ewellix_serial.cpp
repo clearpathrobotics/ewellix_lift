@@ -75,7 +75,7 @@ EwellixSerial::open()
 {
   this->close();
 
-  serial_ = new serial::Serial();
+  serial_ = std::make_unique<serial::Serial>();
 
   serial_->setPort(port_);
   serial_->setBaudrate(baud_rate_);
@@ -104,11 +104,13 @@ EwellixSerial::open()
 void
 EwellixSerial::close()
 {
-  if(serial_ != nullptr && serial_->isOpen())
+  if (serial_)
   {
-    serial_->close();
-    delete serial_;
-    serial_ = nullptr;
+    if (serial_->isOpen())
+    {
+      serial_->close();
+    }
+    serial_.reset();
   }
 }
 
