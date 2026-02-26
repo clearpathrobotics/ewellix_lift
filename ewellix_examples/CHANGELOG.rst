@@ -2,6 +2,9 @@
 Changelog for package ewellix_examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.2.1 (2025-10-22)
 ------------------
 

@@ -2,6 +2,12 @@
 Changelog for package ewellix_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Switched to unique_ptr.
+* Added retry logic.
+* Contributors: Tony Baltovski
+
 0.2.1 (2025-10-22)
 ------------------
 * Thread sleep
