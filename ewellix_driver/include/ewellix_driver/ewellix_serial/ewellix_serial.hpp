@@ -37,6 +37,7 @@
 #include <cassert>
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <thread>
 #include "serial/serial.h"
 // #include "ewellix_driver/ewellix_serial/ewellix_serial_proto.hpp"
@@ -438,7 +439,7 @@ class EwellixSerial
     {
       return getActuatorData(WritableDataField::REMOTE_POSITION_ACTUATOR, actuator, data);
     };
-    serial::Serial * serial_ = nullptr;
+    std::unique_ptr<serial::Serial> serial_;
 
   private:
     uint16_t CRC_TABLE[256] = {
