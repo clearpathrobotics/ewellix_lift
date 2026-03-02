@@ -188,6 +188,15 @@ EwellixHardwareInterface::on_configure(const rclcpp_lifecycle::State& previous_s
   rated_effort_ = std::stof(info_.hardware_parameters["rated_effort"]);
   // Tolerance
   tolerance_ = std::stof(info_.hardware_parameters["tolerance"]);
+  // Encoder Limits
+  if (info_.hardware_parameters.count("encoder_limits_lower") != 0)
+  {
+    encoder_limits_.LOWER = std::stoi(info_.hardware_parameters["encoder_limits_lower"]);
+  }
+  if (info_.hardware_parameters.count("encoder_limits_upper") != 0)
+  {
+    encoder_limits_.UPPER = std::stoi(info_.hardware_parameters["encoder_limits_upper"]);
+  }
 
   // Create EwellixSerial
   ewellix_serial_ = std::make_unique<EwellixSerial>(
