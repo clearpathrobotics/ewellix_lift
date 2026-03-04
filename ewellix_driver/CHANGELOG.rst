@@ -2,8 +2,8 @@
 Changelog for package ewellix_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.3 (2026-03-04)
+------------------
 * Pass encoder limits to hardware interface
 * Contributors: Luis Camero
 
