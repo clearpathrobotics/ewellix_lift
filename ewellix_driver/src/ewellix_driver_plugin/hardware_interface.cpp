@@ -188,6 +188,15 @@ EwellixHardwareInterface::on_configure(const rclcpp_lifecycle::State& previous_s
   rated_effort_ = std::stof(info_.hardware_parameters["rated_effort"]);
   // Tolerance
   tolerance_ = std::stof(info_.hardware_parameters["tolerance"]);
+  // Encoder Limits
+  if (info_.hardware_parameters.count("encoder_limits_lower") != 0)
+  {
+    encoder_limits_.LOWER = std::stoi(info_.hardware_parameters["encoder_limits_lower"]);
+  }
+  if (info_.hardware_parameters.count("encoder_limits_upper") != 0)
+  {
+    encoder_limits_.UPPER = std::stoi(info_.hardware_parameters["encoder_limits_upper"]);
+  }
 
   // Create EwellixSerial
   ewellix_serial_ = std::make_unique<EwellixSerial>(
@@ -220,10 +229,28 @@ EwellixHardwareInterface::on_activate(const rclcpp_lifecycle::State& previous_st
 {
   RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Activating...");
 
-  // Activate Communication
-  if(!ewellix_serial_->activate())
+  // Activate comms with retry logic
+  constexpr int max_retries = 5;
+  constexpr int retry_delay_ms = 500;
+  bool activated = false;
+
+  for (int attempt = 1; attempt <= max_retries; ++attempt)
   {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to activate EwellixSerial remote control.");
+    if (ewellix_serial_->activate())
+    {
+      activated = true;
+      break;
+    }
+    RCLCPP_WARN(rclcpp::get_logger("EwellixHardwareInterface"),
+                "Failed to activate EwellixSerial remote control (attempt %d/%d). Retrying in %d ms...",
+                attempt, max_retries, retry_delay_ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds(retry_delay_ms));
+  }
+
+  if (!activated)
+  {
+    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"),
+                        "Failed to activate EwellixSerial remote control after " << max_retries << " attempts.");
     return hardware_interface::CallbackReturn::ERROR;
   }
 
