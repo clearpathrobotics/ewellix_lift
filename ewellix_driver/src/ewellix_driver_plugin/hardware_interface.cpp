@@ -49,14 +49,14 @@ EwellixHardwareInterface::~EwellixHardwareInterface()
  * Initialize the control variables with the appropriate number of entries.
  */
 hardware_interface::CallbackReturn
-EwellixHardwareInterface::on_init(const hardware_interface::HardwareInfo& system_info)
+EwellixHardwareInterface::on_init(const hardware_interface::HardwareComponentInterfaceParams& params)
 {
-  if (hardware_interface::SystemInterface::on_init(system_info) != hardware_interface::CallbackReturn::SUCCESS)
+  if (hardware_interface::SystemInterface::on_init(params) != hardware_interface::CallbackReturn::SUCCESS)
   {
     return hardware_interface::CallbackReturn::ERROR;
   }
 
-  info_ = system_info;
+  info_ = params.hardware_info;
   joint_count_ = 0;
   activated_ = false;
   async_error_ = false;
@@ -170,7 +170,7 @@ EwellixHardwareInterface::export_command_interfaces()
  * Parse the hardware parameters and attempt to open the given port.
  */
 hardware_interface::CallbackReturn
-EwellixHardwareInterface::on_configure(const rclcpp_lifecycle::State& previous_state)
+EwellixHardwareInterface::on_configure(const rclcpp_lifecycle::State& /*previous_state*/)
 {
   RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Configuring...");
 
@@ -225,7 +225,7 @@ EwellixHardwareInterface::on_configure(const rclcpp_lifecycle::State& previous_s
  * Send a stop command to clear all motion flags.
  */
 hardware_interface::CallbackReturn
-EwellixHardwareInterface::on_activate(const rclcpp_lifecycle::State& previous_state)
+EwellixHardwareInterface::on_activate(const rclcpp_lifecycle::State& /*previous_state*/)
 {
   RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Activating...");
 
@@ -294,7 +294,7 @@ EwellixHardwareInterface::on_activate(const rclcpp_lifecycle::State& previous_st
  * Send abort command to stop remote communication mode.
  */
 hardware_interface::CallbackReturn
-EwellixHardwareInterface::on_deactivate(const rclcpp_lifecycle::State& previous_state)
+EwellixHardwareInterface::on_deactivate(const rclcpp_lifecycle::State& /*previous_state*/)
 {
   RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Deactivating...");
 
@@ -314,7 +314,7 @@ EwellixHardwareInterface::on_deactivate(const rclcpp_lifecycle::State& previous_
  * Close the port.
  */
 hardware_interface::CallbackReturn
-EwellixHardwareInterface::on_cleanup(const rclcpp_lifecycle::State& previous_state)
+EwellixHardwareInterface::on_cleanup(const rclcpp_lifecycle::State& /*previous_state*/)
 {
   RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Cleanup...");
 
@@ -336,7 +336,7 @@ EwellixHardwareInterface::on_cleanup(const rclcpp_lifecycle::State& previous_sta
  * On Shutdown
  */
 hardware_interface::CallbackReturn
-EwellixHardwareInterface::on_shutdown(const rclcpp_lifecycle::State& previous_state)
+EwellixHardwareInterface::on_shutdown(const rclcpp_lifecycle::State& /*previous_state*/)
 {
   RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Shutdown...");
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -346,7 +346,7 @@ EwellixHardwareInterface::on_shutdown(const rclcpp_lifecycle::State& previous_st
  * On Error
  */
 hardware_interface::CallbackReturn
-EwellixHardwareInterface::on_error(const rclcpp_lifecycle::State& previous_state)
+EwellixHardwareInterface::on_error(const rclcpp_lifecycle::State& /*previous_state*/)
 {
   RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Error!");
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -360,7 +360,7 @@ EwellixHardwareInterface::on_error(const rclcpp_lifecycle::State& previous_state
  * Check if the lift is not at the commanded position and move.
  */
 hardware_interface::return_type
-EwellixHardwareInterface::read(const rclcpp::Time& time, const rclcpp::Duration& period)
+EwellixHardwareInterface::read(const rclcpp::Time& /*time*/, const rclcpp::Duration& period)
 {
   std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
   std::chrono::steady_clock::time_point end;
@@ -397,7 +397,7 @@ EwellixHardwareInterface::read(const rclcpp::Time& time, const rclcpp::Duration&
  * Write and read happens in read command.
  */
 hardware_interface::return_type
-EwellixHardwareInterface::write(const rclcpp::Time& time, const rclcpp::Duration& period)
+EwellixHardwareInterface::write(const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/)
 {
   return hardware_interface::return_type::OK;
 }

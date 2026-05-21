@@ -88,7 +88,6 @@ private:
 
   int joint_count_;
   bool activated_;
-  bool in_motion_;
   float conversion_;
   float rated_effort_;
   float tolerance_;
