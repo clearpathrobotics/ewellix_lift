@@ -49,14 +49,14 @@ EwellixHardwareInterface::~EwellixHardwareInterface()
  * Initialize the control variables with the appropriate number of entries.
  */
 hardware_interface::CallbackReturn
-EwellixHardwareInterface::on_init(const hardware_interface::HardwareInfo& system_info)
+EwellixHardwareInterface::on_init(const hardware_interface::HardwareComponentInterfaceParams& params)
 {
-  if (hardware_interface::SystemInterface::on_init(system_info) != hardware_interface::CallbackReturn::SUCCESS)
+  if (hardware_interface::SystemInterface::on_init(params) != hardware_interface::CallbackReturn::SUCCESS)
   {
     return hardware_interface::CallbackReturn::ERROR;
   }
 
-  info_ = system_info;
+  info_ = params.hardware_info;
   joint_count_ = 0;
   activated_ = false;
   async_error_ = false;

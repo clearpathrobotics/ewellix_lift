@@ -60,7 +60,7 @@ class EwellixHardwareInterface
   EwellixHardwareInterface(){};
   ~EwellixHardwareInterface();
 
-  hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareInfo& system_info) final;
+  hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareComponentInterfaceParams& params) final;
 
   std::vector<hardware_interface::StateInterface>
   export_state_interfaces() final;
