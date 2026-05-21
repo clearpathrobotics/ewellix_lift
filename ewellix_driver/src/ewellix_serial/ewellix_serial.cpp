@@ -89,7 +89,7 @@ EwellixSerial::open()
       serial_->open();
       return true;
     }
-    catch (serial::IOException e)
+    catch (const serial::IOException& e)
     {
       std::cout << __PRETTY_FUNCTION__ << ": IOException: " << e.what() << std::endl;
       return false;
@@ -489,7 +489,7 @@ EwellixSerial::send(const std::vector<uint8_t> message)
       serial_->write(message);
       serial_->flush();
     }
-    catch (serial::IOException e)
+    catch (const serial::IOException& e)
     {
       return false;
     }
