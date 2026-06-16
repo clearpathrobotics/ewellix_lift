@@ -78,6 +78,7 @@ EwellixNode::EwellixNode(const std::string node_name)
   activated_ = false;
   async_error_ = false;
   async_thread_shutdown_ = false;
+  recovery_in_progress_ = false;
 
   // Create serial port
   ewellix_serial_ = std::make_unique<EwellixSerial>(port_, baud_, timeout_);
@@ -247,25 +248,172 @@ EwellixNode::asyncThread()
   async_thread_shutdown_ = false;
   while(!async_thread_shutdown_)
   {
-    if(activated_)
+    if(activated_ && !recovery_in_progress_)
     {
       // Update
       if(!updateState())
       {
-        async_error_ = true;
+        RCLCPP_ERROR(this->get_logger(),
+                     "Failed to update state. Starting recovery...");
+        attemptRecovery();
+        continue;
       }
       // Error
       if(errorTriggered())
       {
-        async_error_ = true;
+        RCLCPP_ERROR(this->get_logger(),
+                     "Error triggered. Starting recovery...");
+        attemptRecovery();
+        continue;
       }
       // Command
       if(!executeCommand())
       {
-        async_error_ = true;
+        RCLCPP_ERROR(this->get_logger(),
+                     "Failed to execute command. Starting recovery...");
+        attemptRecovery();
+        continue;
       }
     }
+    else if(recovery_in_progress_)
+    {
+      // During recovery, sleep to avoid busy-waiting
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
   }
+}
+
+/**
+ * Attempt full recovery after error.
+ *
+ * Performs the full reconnection sequence:
+ *   1. Stop sending commands (activated_ = false)
+ *   2. Close serial port
+ *   3. Wait for the device to come back
+ *   4. Reopen serial port
+ *   5. Reactivate remote communication
+ *   6. Set cyclic object 2
+ *   7. Send initial cycle2 to get current state
+ *   8. Resync position commands with actual positions
+ *   9. Stop all to clear flags
+ *  10. Clear errors, set activated_ = true
+ *
+ * Retries up to MAX_RECOVERY_ATTEMPTS with RECOVERY_DELAY_MS between each.
+ *
+ * @return true if recovery succeeded.
+ */
+bool
+EwellixNode::attemptRecovery()
+{
+  // Prevent re-entrant recovery and stop normal operations
+  activated_ = false;
+  recovery_in_progress_ = true;
+  int attempt = 0;
+
+  RCLCPP_WARN(this->get_logger(),
+              "=== RECOVERY STARTED === Will retry indefinitely with %d ms delay.",
+              RECOVERY_DELAY_MS);
+
+  while(!async_thread_shutdown_)
+  {
+    attempt++;
+    RCLCPP_INFO(this->get_logger(),
+                "Recovery attempt %d...", attempt);
+
+    // Step 1: Close the serial port
+    RCLCPP_INFO(this->get_logger(), "Closing serial port...");
+    ewellix_serial_->close();
+
+    // Step 2: Wait for hardware to power back on
+    RCLCPP_INFO(this->get_logger(),
+                "Waiting %d ms for hardware to recover...", RECOVERY_DELAY_MS);
+    std::this_thread::sleep_for(std::chrono::milliseconds(RECOVERY_DELAY_MS));
+
+    if(async_thread_shutdown_)
+    {
+      break;
+    }
+
+    // Step 3: Reopen serial port
+    RCLCPP_INFO(this->get_logger(), "Reopening serial port...");
+    if(!ewellix_serial_->open())
+    {
+      RCLCPP_WARN(this->get_logger(),
+                  "Failed to reopen serial port on attempt %d.", attempt);
+      continue;
+    }
+
+    // Step 4: Reactivate remote communication (with sub-retries)
+    RCLCPP_INFO(this->get_logger(), "Reactivating remote communication...");
+    bool activate_ok = false;
+    for(int sub = 0; sub < 3; sub++)
+    {
+      if(ewellix_serial_->activate())
+      {
+        activate_ok = true;
+        break;
+      }
+      RCLCPP_WARN(this->get_logger(),
+                  "Activate sub-attempt %d/3 failed, retrying...", sub + 1);
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+    if(!activate_ok)
+    {
+      RCLCPP_WARN(this->get_logger(),
+                  "Failed to reactivate on attempt %d.", attempt);
+      continue;
+    }
+
+    // Step 5: Set cyclic object 2
+    RCLCPP_INFO(this->get_logger(), "Setting CyclicObject2...");
+    if(!ewellix_serial_->setCyclicObject2())
+    {
+      RCLCPP_WARN(this->get_logger(),
+                  "Failed to set CyclicObject2 on attempt %d.", attempt);
+      continue;
+    }
+
+    // Step 6: Initial cycle2 to read current state
+    RCLCPP_INFO(this->get_logger(), "Reading initial state...");
+    if(!ewellix_serial_->cycle2(encoder_commands_, data_))
+    {
+      RCLCPP_WARN(this->get_logger(),
+                  "Failed initial cycle2 on attempt %d.", attempt);
+      continue;
+    }
+
+    // Parse state from data
+    state_.setFromData(data_);
+
+    // Step 7: Sync position commands with actual positions (safety: don't resume old motion)
+    for(int i = 0; i < joint_count_; i++)
+    {
+      encoder_commands_[i] = state_.actual_positions[i];
+      position_commands_[i] = encoder_commands_[i] / conversion_;
+    }
+
+    // Step 8: Stop all to clear motion flags
+    RCLCPP_INFO(this->get_logger(), "Sending stop to clear flags...");
+    if(!ewellix_serial_->stopAll())
+    {
+      RCLCPP_WARN(this->get_logger(),
+                  "Failed to stop on attempt %d.", attempt);
+      continue;
+    }
+
+    // === Recovery succeeded ===
+    async_error_ = false;
+    recovery_in_progress_ = false;
+    activated_ = true;
+
+    RCLCPP_INFO(this->get_logger(),
+                "=== RECOVERY SUCCEEDED on attempt %d === Resuming normal operation.",
+                attempt);
+    return true;
+  }
+
+  // Thread shutdown requested during recovery
+  return false;
 }
 
 /**
@@ -415,18 +563,19 @@ EwellixNode::errorTriggered()
     drive |= scu_error.drive_4_error * (1 << 4);
     drive |= scu_error.drive_5_error * (1 << 5);
     drive |= scu_error.drive_6_error * (1 << 6);
-    RCLCPP_WARN(rclcpp::get_logger("EwellixNode"), "Error with drive #%d. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.", int(std::sqrt(drive)));
-    RCLCPP_WARN(rclcpp::get_logger("EwellixNode"), "Attempting to recover...");
+    RCLCPP_WARN(this->get_logger(), "Error with drive #%d. Occurs when peak current reached, short circuit current, sensor monitor, over current or timeout. Drive stopped (fast stop). Bit reset on next motion.", int(std::sqrt(drive)));
+    RCLCPP_WARN(this->get_logger(), "Attempting light recovery (stop + execute)...");
     if(!ewellix_serial_->stopAll())
     {
-      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send stop.");
+      RCLCPP_ERROR(this->get_logger(), "Light recovery failed (stop). Will attempt full recovery.");
       return true;
     }
     if(!ewellix_serial_->executeAllOut())
     {
-      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send execute command.");
+      RCLCPP_ERROR(this->get_logger(), "Light recovery failed (execute). Will attempt full recovery.");
       return true;
     }
+    RCLCPP_INFO(this->get_logger(), "Light drive error recovery succeeded.");
     async_error_ = false;
     return false;
   }
