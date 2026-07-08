@@ -59,6 +59,7 @@ EwellixHardwareInterface::on_init(const hardware_interface::HardwareComponentInt
   info_ = params.hardware_info;
   joint_count_ = 0;
   activated_ = false;
+  hold_last_state_on_error_ = true;
   async_error_ = false;
   async_thread_shutdown_ = false;
   recovery_in_progress_ = false;
@@ -189,6 +190,12 @@ EwellixHardwareInterface::on_configure(const rclcpp_lifecycle::State& /*previous
   rated_effort_ = std::stof(info_.hardware_parameters["rated_effort"]);
   // Tolerance
   tolerance_ = std::stof(info_.hardware_parameters["tolerance"]);
+  // Hold the last valid state if communication drops because lift power is intentionally removed.
+  if (info_.hardware_parameters.count("hold_last_state_on_error") != 0)
+  {
+    const std::string hold_state = info_.hardware_parameters["hold_last_state_on_error"];
+    hold_last_state_on_error_ = hold_state == "true" || hold_state == "True" || hold_state == "1";
+  }
   // Encoder Limits
   if (info_.hardware_parameters.count("encoder_limits_lower") != 0)
   {
@@ -277,6 +284,7 @@ EwellixHardwareInterface::on_activate(const rclcpp_lifecycle::State& /*previous_
   {
     encoder_commands_[i] = state_.actual_positions[i];
     position_commands_[i] = encoder_commands_[i] / conversion_;
+    positions_[i] = position_commands_[i];
   }
 
   // Stop command to clear flags
@@ -368,10 +376,15 @@ EwellixHardwareInterface::read(const rclcpp::Time& /*time*/, const rclcpp::Durat
 
   if(recovery_in_progress_)
   {
-    // During recovery, report stale positions — don't kill the lifecycle
+    if (!hold_last_state_on_error_)
+    {
+      return hardware_interface::return_type::ERROR;
+    }
+    // During recovery, report stale positions -- don't kill the lifecycle.
+    holdCurrentState();
     RCLCPP_WARN_THROTTLE(rclcpp::get_logger("EwellixHardwareInterface"),
                          *rclcpp::Clock::make_shared(), 5000,
-                         "Recovery in progress, reporting stale state...");
+                         "Lift power may be off; publishing last known lift position while recovery runs.");
     return hardware_interface::return_type::OK;
   }
 
@@ -471,31 +484,42 @@ EwellixHardwareInterface::asyncThread()
       // Update
       if(!updateState())
       {
-        RCLCPP_ERROR(rclcpp::get_logger("EwellixHardwareInterface"),
-                     "Failed to update state. Starting recovery...");
+        RCLCPP_WARN(rclcpp::get_logger("EwellixHardwareInterface"),
+                    "Failed to update state. Lift power may be off; publishing last known lift position while recovery runs.");
+        if (hold_last_state_on_error_)
+        {
+          holdCurrentState();
+        }
         attemptRecovery();
         continue;
       }
       // Error handling
       if(errorTriggered())
       {
-        RCLCPP_ERROR(rclcpp::get_logger("EwellixHardwareInterface"),
-                     "Error triggered. Starting recovery...");
+        RCLCPP_WARN(rclcpp::get_logger("EwellixHardwareInterface"),
+                    "Error triggered. Lift power may be off; publishing last known lift position while recovery runs.");
+        if (hold_last_state_on_error_)
+        {
+          holdCurrentState();
+        }
         attemptRecovery();
         continue;
       }
       // Command
       if(!executeCommand())
       {
-        RCLCPP_ERROR(rclcpp::get_logger("EwellixHardwareInterface"),
-                     "Failed to execute command. Starting recovery...");
+        RCLCPP_WARN(rclcpp::get_logger("EwellixHardwareInterface"),
+                    "Failed to execute command. Lift power may be off; publishing last known lift position while recovery runs.");
+        if (hold_last_state_on_error_)
+        {
+          holdCurrentState();
+        }
         attemptRecovery();
         continue;
       }
     }
-    else if(recovery_in_progress_)
+    else
     {
-      // During recovery, sleep to avoid busy-waiting
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   }
@@ -608,6 +632,7 @@ EwellixHardwareInterface::attemptRecovery()
     {
       encoder_commands_[i] = state_.actual_positions[i];
       position_commands_[i] = encoder_commands_[i] / conversion_;
+      positions_[i] = position_commands_[i];
     }
 
     // Step 8: Stop all to clear motion flags
@@ -685,6 +710,34 @@ EwellixHardwareInterface::convertCommands()
       encoder_commands_[i] = encoder_limits_.UPPER;
     }
     encoder_commands_[i + 1] = encoder_commands_[i];
+  }
+}
+
+/**
+ * Hold current exported state interfaces.
+ *
+ * The lift can be intentionally powered off while the arm operates. In that
+ * case ros2_control remains active and joint_state_broadcaster keeps
+ * publishing the last known lift position for robot_state_publisher.
+ */
+void
+EwellixHardwareInterface::holdCurrentState()
+{
+  syncCommandsToHeldState();
+  for(int i = 0; i < joint_count_; i++)
+  {
+    velocities_[i] = 0.0;
+    efforts_[i] = 0.0;
+  }
+}
+
+void
+EwellixHardwareInterface::syncCommandsToHeldState()
+{
+  for(int i = 0; i < joint_count_; i++)
+  {
+    position_commands_[i] = positions_[i];
+    encoder_commands_[i] = positions_[i] * conversion_;
   }
 }
 
