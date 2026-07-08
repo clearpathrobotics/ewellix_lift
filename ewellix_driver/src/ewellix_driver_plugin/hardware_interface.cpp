@@ -290,7 +290,7 @@ EwellixHardwareInterface::on_activate(const rclcpp_lifecycle::State& /*previous_
   // Stop command to clear flags
   if(!ewellix_serial_->stopAll())
   {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to send stop.");
+    RCLCPP_WARN_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to send stop.");
     return hardware_interface::CallbackReturn::ERROR;
   }
   activated_ = true;
@@ -381,10 +381,8 @@ EwellixHardwareInterface::read(const rclcpp::Time& /*time*/, const rclcpp::Durat
       return hardware_interface::return_type::ERROR;
     }
     // During recovery, report stale positions -- don't kill the lifecycle.
+    // Do not log from read(); controller_manager calls this from its control loop.
     holdCurrentState();
-    RCLCPP_WARN_THROTTLE(rclcpp::get_logger("EwellixHardwareInterface"),
-                         *rclcpp::Clock::make_shared(), 5000,
-                         "Lift power may be off; publishing last known lift position while recovery runs.");
     return hardware_interface::return_type::OK;
   }
 
@@ -432,7 +430,7 @@ EwellixHardwareInterface::updateState()
   // Cycle Communication to keep alive
   if(!ewellix_serial_->cycle2(encoder_commands_, data_))
   {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to cycle2 EwellixSerial port.");
+    RCLCPP_WARN_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to cycle2 EwellixSerial port.");
     return false;
   }
 
@@ -454,13 +452,13 @@ EwellixHardwareInterface::executeCommand()
     RCLCPP_DEBUG(rclcpp::get_logger("EwellixHardwareInterface"), "Stop!");
     if(!ewellix_serial_->stopAll())
     {
-      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to send stop.");
+      RCLCPP_WARN_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to send stop.");
       return false;
     }
     RCLCPP_DEBUG(rclcpp::get_logger("EwellixHardwareInterface"), "Moving!");
     if(!ewellix_serial_->executeAllRemote())
     {
-      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to send execute command.");
+      RCLCPP_WARN_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to send execute command.");
       return false;
     }
     // Wait for motion
