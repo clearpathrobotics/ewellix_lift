@@ -130,10 +130,14 @@ class EwellixHardwareInterface
   void
   syncCommandsToHeldState();
 
+  void
+  logHeldStateWarning(const std::string& reason);
+
   protected:
   int joint_count_;
   bool activated_;
   bool hold_last_state_on_error_;
+  std::chrono::steady_clock::time_point last_held_state_warning_time_;
   std::atomic_bool recovery_in_progress_;
   static constexpr int RECOVERY_DELAY_MS = 2000;
   float conversion_;

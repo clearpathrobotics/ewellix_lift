@@ -60,6 +60,7 @@ EwellixHardwareInterface::on_init(const hardware_interface::HardwareComponentInt
   joint_count_ = 0;
   activated_ = false;
   hold_last_state_on_error_ = true;
+  last_held_state_warning_time_ = std::chrono::steady_clock::time_point();
   async_error_ = false;
   async_thread_shutdown_ = false;
   recovery_in_progress_ = false;
@@ -430,7 +431,7 @@ EwellixHardwareInterface::updateState()
   // Cycle Communication to keep alive
   if(!ewellix_serial_->cycle2(encoder_commands_, data_))
   {
-    RCLCPP_WARN_STREAM(rclcpp::get_logger("EwellixHardwareInterface"), "Failed to cycle2 EwellixSerial port.");
+    logHeldStateWarning("Failed to cycle2 EwellixSerial port.");
     return false;
   }
 
@@ -578,8 +579,7 @@ EwellixHardwareInterface::attemptRecovery()
     RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Reopening serial port...");
     if(!ewellix_serial_->open())
     {
-      RCLCPP_WARN(rclcpp::get_logger("EwellixHardwareInterface"),
-                  "Failed to reopen serial port on attempt %d.", attempt);
+      logHeldStateWarning("Failed to reopen serial port.");
       continue;
     }
 
@@ -593,14 +593,12 @@ EwellixHardwareInterface::attemptRecovery()
         activate_ok = true;
         break;
       }
-      RCLCPP_WARN(rclcpp::get_logger("EwellixHardwareInterface"),
-                  "Activate sub-attempt %d/3 failed, retrying...", sub + 1);
+      logHeldStateWarning("Failed to reactivate remote communication.");
       std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
     if(!activate_ok)
     {
-      RCLCPP_WARN(rclcpp::get_logger("EwellixHardwareInterface"),
-                  "Failed to reactivate on attempt %d.", attempt);
+      logHeldStateWarning("Failed to reactivate remote communication.");
       continue;
     }
 
@@ -608,8 +606,7 @@ EwellixHardwareInterface::attemptRecovery()
     RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Setting CyclicObject2...");
     if(!ewellix_serial_->setCyclicObject2())
     {
-      RCLCPP_WARN(rclcpp::get_logger("EwellixHardwareInterface"),
-                  "Failed to set CyclicObject2 on attempt %d.", attempt);
+      logHeldStateWarning("Failed to set CyclicObject2.");
       continue;
     }
 
@@ -617,8 +614,7 @@ EwellixHardwareInterface::attemptRecovery()
     RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Reading initial state...");
     if(!ewellix_serial_->cycle2(encoder_commands_, data_))
     {
-      RCLCPP_WARN(rclcpp::get_logger("EwellixHardwareInterface"),
-                  "Failed initial cycle2 on attempt %d.", attempt);
+      logHeldStateWarning("Failed initial cycle2.");
       continue;
     }
 
@@ -637,8 +633,7 @@ EwellixHardwareInterface::attemptRecovery()
     RCLCPP_INFO(rclcpp::get_logger("EwellixHardwareInterface"), "Sending stop to clear flags...");
     if(!ewellix_serial_->stopAll())
     {
-      RCLCPP_WARN(rclcpp::get_logger("EwellixHardwareInterface"),
-                  "Failed to stop on attempt %d.", attempt);
+      logHeldStateWarning("Failed to stop during recovery.");
       continue;
     }
 
@@ -737,6 +732,20 @@ EwellixHardwareInterface::syncCommandsToHeldState()
     position_commands_[i] = positions_[i];
     encoder_commands_[i] = positions_[i] * conversion_;
   }
+}
+
+void
+EwellixHardwareInterface::logHeldStateWarning(const std::string& reason)
+{
+  const auto now = std::chrono::steady_clock::now();
+  if (now - last_held_state_warning_time_ < std::chrono::seconds(3))
+  {
+    return;
+  }
+  last_held_state_warning_time_ = now;
+  RCLCPP_WARN(rclcpp::get_logger("EwellixHardwareInterface"),
+              "%s Lift power may be off; publishing last known lift position while recovery runs.",
+              reason.c_str());
 }
 
 /**
