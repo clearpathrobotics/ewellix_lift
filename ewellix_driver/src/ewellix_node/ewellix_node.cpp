@@ -45,6 +45,10 @@ EwellixNode::EwellixNode(const std::string node_name)
   this->declare_parameter("rated_effort", 2000.0);
   this->declare_parameter("tolerance", 0.005);
   this->declare_parameter("frequency", 10.0);
+  this->declare_parameter("publish_joint_states", true);
+  this->declare_parameter("joint_names", std::vector<std::string>({"lift_lower_joint", "lift_upper_joint"}));
+  this->declare_parameter("hold_last_state_on_error", true);
+  this->declare_parameter("allow_startup_without_lift_state", false);
   this->declare_parameter("encoder_upper_limit", encoder_limits_.UPPER);
   this->declare_parameter("encoder_lower_limit", encoder_limits_.LOWER);
 
@@ -57,12 +61,16 @@ EwellixNode::EwellixNode(const std::string node_name)
   this->get_parameter("rated_effort", rated_effort_);
   this->get_parameter("tolerance", tolerance_);
   this->get_parameter("frequency", frequency_);
+  this->get_parameter("publish_joint_states", publish_joint_states_);
+  this->get_parameter("joint_names", joint_names_);
+  this->get_parameter("hold_last_state_on_error", hold_last_state_on_error_);
+  this->get_parameter("allow_startup_without_lift_state", allow_startup_without_lift_state_);
   this->get_parameter("encoder_upper_limit", encoder_limits_.UPPER);
   this->get_parameter("encoder_lower_limit", encoder_limits_.LOWER);
 
 
   RCLCPP_INFO(this->get_logger(),
-  "\nParameters:\n  joint_count: %d\n  port: %s\n  baud: %d\n  timeout: %d\n  conversion: %f\n  rated_effort: %f\n  tolerance: %f\n  frequency: %f", joint_count_, port_.c_str(), baud_, timeout_, conversion_, rated_effort_, tolerance_, frequency_
+  "\nParameters:\n  joint_count: %d\n  port: %s\n  baud: %d\n  timeout: %d\n  conversion: %f\n  rated_effort: %f\n  tolerance: %f\n  frequency: %f\n  publish_joint_states: %s\n  hold_last_state_on_error: %s\n  allow_startup_without_lift_state: %s", joint_count_, port_.c_str(), baud_, timeout_, conversion_, rated_effort_, tolerance_, frequency_, publish_joint_states_ ? "true" : "false", hold_last_state_on_error_ ? "true" : "false", allow_startup_without_lift_state_ ? "true" : "false"
   );
 
   // Initialize Variables
@@ -79,56 +87,111 @@ EwellixNode::EwellixNode(const std::string node_name)
   async_error_ = false;
   async_thread_shutdown_ = false;
   recovery_in_progress_ = false;
+  last_held_state_warning_time_ = std::chrono::steady_clock::time_point();
+
+  if (joint_names_.size() != static_cast<size_t>(joint_count_))
+  {
+    RCLCPP_WARN(this->get_logger(),
+                "joint_names size (%zu) does not match joint_count (%d). Falling back to lift_joint_<index> names.",
+                joint_names_.size(), joint_count_);
+    joint_names_.clear();
+    for (int i = 0; i < joint_count_; ++i)
+    {
+      joint_names_.push_back("lift_joint_" + std::to_string(i));
+    }
+  }
 
   // Create serial port
   ewellix_serial_ = std::make_unique<EwellixSerial>(port_, baud_, timeout_);
 
+  bool startup_ok = false;
+  bool initial_state_known = false;
+
   // Open Serial
   if(!ewellix_serial_->open())
   {
-    RCLCPP_FATAL(this->get_logger(), "Failed to open port communication.");
-    exit(1);
+    RCLCPP_WARN(this->get_logger(), "Failed to open port communication. Lift power may be off.");
   }
-  RCLCPP_INFO(this->get_logger(), "Successfully opened port.");
-
-  // Activate communication
-  if (!ewellix_serial_->activate())
+  else
   {
-    RCLCPP_INFO(this->get_logger(), "Failed to activate. Trying again...");
+    RCLCPP_INFO(this->get_logger(), "Successfully opened port.");
+
+    // Activate communication
     if (!ewellix_serial_->activate())
     {
-      RCLCPP_FATAL(this->get_logger(), "Failed to activate remote communication.");
-      exit(1);
+      RCLCPP_INFO(this->get_logger(), "Failed to activate. Trying again...");
+      if (!ewellix_serial_->activate())
+      {
+        RCLCPP_WARN(this->get_logger(), "Failed to activate remote communication. Lift power may be off.");
+      }
+      else
+      {
+        RCLCPP_INFO(this->get_logger(), "Successfully activated remote communication.");
+      }
+    }
+    else
+    {
+      RCLCPP_INFO(this->get_logger(), "Successfully activated remote communication.");
+    }
+
+    // Initial Cycle
+    if (ewellix_serial_->cycle())
+    {
+      RCLCPP_INFO(this->get_logger(), "Successfully cycled remote communication.");
+
+      // Setup CyclicObject2 to send and receive lift state
+      if (ewellix_serial_->setCyclicObject2())
+      {
+        RCLCPP_INFO(this->get_logger(), "Successfully set CyclicObject2");
+
+        // Get the initial state of the lift
+        getInitialState();
+        initial_state_known = true;
+        startup_ok = true;
+
+        // Stop to clear movement flags.
+        if (!ewellix_serial_->stopAll())
+        {
+          RCLCPP_WARN(this->get_logger(), "Failed to stop all actuators. Lift power may be off.");
+        }
+        else
+        {
+          RCLCPP_INFO(this->get_logger(), "Successfully stopped all actuators.");
+        }
+      }
+      else
+      {
+        RCLCPP_WARN(this->get_logger(), "Failed to set CyclicObject2. Lift power may be off.");
+      }
+    }
+    else
+    {
+      RCLCPP_WARN(this->get_logger(), "Failed to cycle remote communication. Lift power may be off.");
     }
   }
-  RCLCPP_INFO(this->get_logger(), "Successfully activated remote communication.");
 
-  // Initial Cycle
-  if (!ewellix_serial_->cycle())
+  if (!startup_ok)
   {
-    RCLCPP_FATAL(this->get_logger(), "Failed to cycle remote communication.");
-    exit(1);
-  }
-  RCLCPP_INFO(this->get_logger(), "Successfully cycled remote communication.");
+    if (!allow_startup_without_lift_state_)
+    {
+      RCLCPP_FATAL(this->get_logger(),
+                   "Could not read initial lift state. Refusing to publish assumed lift position. "
+                   "Set allow_startup_without_lift_state:=true only if the lift is guaranteed to start at 0.0.");
+      exit(1);
+    }
 
-  // Setup CyclicObject2 to send and receive lift state
-  if (!ewellix_serial_->setCyclicObject2())
-  {
-    RCLCPP_FATAL(this->get_logger(), "Failed to set CyclicObject2.");
-    exit(1);
+    RCLCPP_WARN(this->get_logger(),
+                "Starting without lift feedback. Publishing assumed 0.0 lift position while recovery runs.");
+    if (!initial_state_known)
+    {
+      state_.actual_positions = std::vector<int>(joint_count_, 0);
+      state_.remote_positions = std::vector<int>(joint_count_, 0);
+      state_.speeds = std::vector<uint16_t>(joint_count_, 0);
+      state_.currents = std::vector<uint16_t>(joint_count_, 0);
+    }
+    holdCurrentState();
+    recovery_in_progress_ = true;
   }
-  RCLCPP_INFO(this->get_logger(), "Successfully set CyclicObject2");
-
-  // Get the initial state of the lift
-  getInitialState();
-
-  // Stop to clear movement flags.
-  if (!ewellix_serial_->stopAll())
-  {
-    RCLCPP_FATAL(this->get_logger(), "Failed to stop all actuators.");
-    exit(1);
-  }
-  RCLCPP_INFO(this->get_logger(), "Successfully stopped all actuators.");
 
   // Setup ROS Interfaces
   subCommand_ = this->create_subscription<ewellix_interfaces::msg::Command>(
@@ -138,15 +201,23 @@ EwellixNode::EwellixNode(const std::string node_name)
   );
 
   pubState_ = this->create_publisher<ewellix_interfaces::msg::State>("state", 10);
+  if (publish_joint_states_)
+  {
+    pubJointState_ = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
+  }
 
   // Publish loop
   run_timer_ = this->create_wall_timer(
     std::chrono::milliseconds(int(1000/frequency_)), std::bind(&EwellixNode::run, this));
 
   // Start thread
-  activated_ = true;
+  activated_ = startup_ok;
 
   async_thread_ = std::make_shared<std::thread>(&EwellixNode::asyncThread, this);
+  if(!startup_ok && allow_startup_without_lift_state_)
+  {
+    std::thread(&EwellixNode::attemptRecovery, this).detach();
+  }
 }
 
 void
@@ -174,6 +245,11 @@ EwellixNode::commandCallback(const ewellix_interfaces::msg::Command &msg)
 void
 EwellixNode::run()
 {
+  if(recovery_in_progress_ && hold_last_state_on_error_)
+  {
+    logHeldStateWarning("Recovery in progress.");
+  }
+
   ewellix_interfaces::msg::State msg_state;
   msg_state.actual_positions = state_.actual_positions;
   msg_state.remote_positions = state_.remote_positions;
@@ -188,6 +264,34 @@ EwellixNode::run()
     msg_state.errors.push_back(state_.errors[i].code);
   }
   pubState_->publish(msg_state);
+  publishJointState();
+}
+
+void
+EwellixNode::publishJointState()
+{
+  if (!publish_joint_states_ || !pubJointState_)
+  {
+    return;
+  }
+
+  sensor_msgs::msg::JointState joint_state;
+  joint_state.header.stamp = this->now();
+  const size_t count = std::min(joint_names_.size(), positions_.size());
+  joint_state.name.reserve(count);
+  joint_state.position.reserve(count);
+  joint_state.velocity.reserve(count);
+  joint_state.effort.reserve(count);
+
+  for (size_t i = 0; i < count; ++i)
+  {
+    joint_state.name.push_back(joint_names_[i]);
+    joint_state.position.push_back(positions_[i]);
+    joint_state.velocity.push_back(i < velocities_.size() ? velocities_[i] : 0.0);
+    joint_state.effort.push_back(i < efforts_.size() ? efforts_[i] : 0.0);
+  }
+
+  pubJointState_->publish(joint_state);
 }
 
 /**
@@ -202,12 +306,13 @@ EwellixNode::updateState()
   // Cycle Communication to keep alive
   if(!ewellix_serial_->cycle2(encoder_commands_, data_))
   {
-    RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to cycle2 EwellixSerial port.");
+    logHeldStateWarning("Failed to cycle2 EwellixSerial port.");
     return false;
   }
 
   // Update state from response data
   state_.setFromData(data_);
+  updateCachedState();
 
   return true;
 }
@@ -224,12 +329,12 @@ EwellixNode::executeCommand()
     RCLCPP_DEBUG(rclcpp::get_logger("EwellixNode"), "Moving!");
     if(!ewellix_serial_->stopAll())
     {
-      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send stop.");
+      RCLCPP_WARN_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send stop.");
       return false;
     }
     if(!ewellix_serial_->executeAllRemote())
     {
-      RCLCPP_FATAL_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send execute command.");
+      RCLCPP_WARN_STREAM(rclcpp::get_logger("EwellixNode"), "Failed to send execute command.");
       return false;
     }
     // Sleep to Allow Motion to begin
@@ -253,31 +358,42 @@ EwellixNode::asyncThread()
       // Update
       if(!updateState())
       {
-        RCLCPP_ERROR(this->get_logger(),
-                     "Failed to update state. Starting recovery...");
+        RCLCPP_WARN(this->get_logger(),
+                    "Failed to update state. Lift power may be off; publishing last known lift state while recovery runs.");
+        if (hold_last_state_on_error_)
+        {
+          holdCurrentState();
+        }
         attemptRecovery();
         continue;
       }
       // Error
       if(errorTriggered())
       {
-        RCLCPP_ERROR(this->get_logger(),
-                     "Error triggered. Starting recovery...");
+        RCLCPP_WARN(this->get_logger(),
+                    "Error triggered. Lift power may be off; publishing last known lift state while recovery runs.");
+        if (hold_last_state_on_error_)
+        {
+          holdCurrentState();
+        }
         attemptRecovery();
         continue;
       }
       // Command
       if(!executeCommand())
       {
-        RCLCPP_ERROR(this->get_logger(),
-                     "Failed to execute command. Starting recovery...");
+        RCLCPP_WARN(this->get_logger(),
+                    "Failed to execute command. Lift power may be off; publishing last known lift state while recovery runs.");
+        if (hold_last_state_on_error_)
+        {
+          holdCurrentState();
+        }
         attemptRecovery();
         continue;
       }
     }
-    else if(recovery_in_progress_)
+    else
     {
-      // During recovery, sleep to avoid busy-waiting
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   }
@@ -338,8 +454,7 @@ EwellixNode::attemptRecovery()
     RCLCPP_INFO(this->get_logger(), "Reopening serial port...");
     if(!ewellix_serial_->open())
     {
-      RCLCPP_WARN(this->get_logger(),
-                  "Failed to reopen serial port on attempt %d.", attempt);
+      logHeldStateWarning("Failed to reopen serial port.");
       continue;
     }
 
@@ -353,14 +468,12 @@ EwellixNode::attemptRecovery()
         activate_ok = true;
         break;
       }
-      RCLCPP_WARN(this->get_logger(),
-                  "Activate sub-attempt %d/3 failed, retrying...", sub + 1);
+      logHeldStateWarning("Failed to reactivate remote communication.");
       std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
     if(!activate_ok)
     {
-      RCLCPP_WARN(this->get_logger(),
-                  "Failed to reactivate on attempt %d.", attempt);
+      logHeldStateWarning("Failed to reactivate remote communication.");
       continue;
     }
 
@@ -368,8 +481,7 @@ EwellixNode::attemptRecovery()
     RCLCPP_INFO(this->get_logger(), "Setting CyclicObject2...");
     if(!ewellix_serial_->setCyclicObject2())
     {
-      RCLCPP_WARN(this->get_logger(),
-                  "Failed to set CyclicObject2 on attempt %d.", attempt);
+      logHeldStateWarning("Failed to set CyclicObject2.");
       continue;
     }
 
@@ -377,27 +489,27 @@ EwellixNode::attemptRecovery()
     RCLCPP_INFO(this->get_logger(), "Reading initial state...");
     if(!ewellix_serial_->cycle2(encoder_commands_, data_))
     {
-      RCLCPP_WARN(this->get_logger(),
-                  "Failed initial cycle2 on attempt %d.", attempt);
+      logHeldStateWarning("Failed initial cycle2.");
       continue;
     }
 
     // Parse state from data
     state_.setFromData(data_);
+    updateCachedState();
 
     // Step 7: Sync position commands with actual positions (safety: don't resume old motion)
     for(int i = 0; i < joint_count_; i++)
     {
       encoder_commands_[i] = state_.actual_positions[i];
       position_commands_[i] = encoder_commands_[i] / conversion_;
+      positions_[i] = position_commands_[i];
     }
 
     // Step 8: Stop all to clear motion flags
     RCLCPP_INFO(this->get_logger(), "Sending stop to clear flags...");
     if(!ewellix_serial_->stopAll())
     {
-      RCLCPP_WARN(this->get_logger(),
-                  "Failed to stop on attempt %d.", attempt);
+      logHeldStateWarning("Failed to stop during recovery.");
       continue;
     }
 
@@ -482,11 +594,87 @@ EwellixNode::getInitialState()
     exit(1);
   }
   state_.setFromData(init_data);
+  updateCachedState();
 
   for (int i = 0; i < joint_count_; i++)
   {
     position_commands_[i] = state_.actual_positions[i] / conversion_;
+    encoder_commands_[i] = state_.actual_positions[i];
   }
+}
+
+/**
+ * Hold current published state.
+ *
+ * The lift can be intentionally powered off while other robot parts operate.
+ * Keep publishing the last known Ewellix state and avoid resuming old commands
+ * when power returns.
+ */
+void
+EwellixNode::holdCurrentState()
+{
+  syncCommandsToHeldState();
+  for(int i = 0; i < joint_count_; i++)
+  {
+    if (i < static_cast<int>(state_.speeds.size()))
+    {
+      state_.speeds[i] = 0;
+    }
+    speed_[i] = 0;
+    velocities_[i] = 0.0;
+    efforts_[i] = 0.0;
+  }
+}
+
+void
+EwellixNode::syncCommandsToHeldState()
+{
+  for(int i = 0; i < joint_count_; i++)
+  {
+    if (i < static_cast<int>(state_.actual_positions.size()))
+    {
+      encoder_commands_[i] = state_.actual_positions[i];
+      position_commands_[i] = encoder_commands_[i] / conversion_;
+      positions_[i] = position_commands_[i];
+    }
+  }
+}
+
+void
+EwellixNode::updateCachedState()
+{
+  for(int i = 0; i < joint_count_; i++)
+  {
+    if (i < static_cast<int>(state_.actual_positions.size()))
+    {
+      old_positions_[i] = positions_[i];
+      encoder_positions_[i] = state_.actual_positions[i];
+      positions_[i] = encoder_positions_[i] / conversion_;
+    }
+    if (i < static_cast<int>(state_.remote_positions.size()))
+    {
+      encoder_commands_[i] = state_.remote_positions[i];
+    }
+    if (i < static_cast<int>(state_.speeds.size()))
+    {
+      speed_[i] = state_.speeds[i];
+      efforts_[i] = state_.speeds[i] / 100 * rated_effort_;
+    }
+  }
+}
+
+void
+EwellixNode::logHeldStateWarning(const std::string& reason)
+{
+  const auto now = std::chrono::steady_clock::now();
+  if (now - last_held_state_warning_time_ < std::chrono::seconds(3))
+  {
+    return;
+  }
+  last_held_state_warning_time_ = now;
+  RCLCPP_WARN(this->get_logger(),
+              "%s Lift power may be off; publishing last known lift state while recovery runs.",
+              reason.c_str());
 }
 
 /**

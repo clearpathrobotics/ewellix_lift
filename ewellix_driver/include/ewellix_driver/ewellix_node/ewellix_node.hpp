@@ -34,9 +34,11 @@
 #ifndef EWELLIX_DRIVER__EWELLIX_NODE_HPP_
 #define EWELLIX_DRIVER__EWELLIX_NODE_HPP_
 
+#include <algorithm>
 #include <chrono>
 #include <thread>
 #include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 #include "std_msgs/msg/int32.hpp"
 #include "ewellix_interfaces/msg/command.hpp"
 #include "ewellix_interfaces/msg/error.hpp"
@@ -84,6 +86,21 @@ public:
   void
   getInitialState();
 
+  void
+  holdCurrentState();
+
+  void
+  syncCommandsToHeldState();
+
+  void
+  updateCachedState();
+
+  void
+  publishJointState();
+
+  void
+  logHeldStateWarning(const std::string& reason);
+
 private:
   std::string port_;
   int baud_;
@@ -91,12 +108,17 @@ private:
 
   int joint_count_;
   bool activated_;
+  bool hold_last_state_on_error_;
+  bool allow_startup_without_lift_state_;
+  std::chrono::steady_clock::time_point last_held_state_warning_time_;
   std::atomic_bool recovery_in_progress_;
   static constexpr int RECOVERY_DELAY_MS = 2000;
   float conversion_;
   float rated_effort_;
   float tolerance_;
   float frequency_;
+  bool publish_joint_states_;
+  std::vector<std::string> joint_names_;
   EwellixSerial::EncoderLimit encoder_limits_;
   rclcpp::TimerBase::SharedPtr run_timer_;
 
@@ -118,6 +140,7 @@ private:
   rclcpp::Subscription<ewellix_interfaces::msg::Command>::SharedPtr subCommand_;
   rclcpp::Publisher<ewellix_interfaces::msg::Error>::SharedPtr pubError_;
   rclcpp::Publisher<ewellix_interfaces::msg::State>::SharedPtr pubState_;
+  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr pubJointState_;
   rclcpp::Publisher<ewellix_interfaces::msg::Status>::SharedPtr pubStatus_;
 };
 
