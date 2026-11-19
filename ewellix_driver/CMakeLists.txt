@@ -89,6 +89,13 @@ ament_target_dependencies(
   ${THIS_PACKAGE_INCLUDE_DEPENDS}
 )
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_cycle2_data test/test_cycle2_data.cpp)
+  target_link_libraries(test_cycle2_data ewellix_serial)
+  ament_target_dependencies(test_cycle2_data serial)
+endif()
+
 # INSTALL
 install(
   TARGETS ewellix_driver_plugin ewellix_serial

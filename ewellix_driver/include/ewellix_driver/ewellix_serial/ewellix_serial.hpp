@@ -36,6 +36,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <cstddef>
 #include <iostream>
 #include <memory>
 #include <thread>
@@ -50,6 +51,10 @@ using namespace std::chrono_literals;
 class EwellixSerial
 {
   public:
+    static constexpr std::size_t MAX_ACTUATOR_COUNT = 6;
+    static constexpr std::size_t ERROR_HISTORY_COUNT = 5;
+    static constexpr std::size_t CYCLE2_DATA_SIZE = 98;
+
     enum Command
     {
       REMOTE = 0x52,            // R

@@ -30,6 +30,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "ewellix_driver/ewellix_serial/ewellix_serial.hpp"
 
+#include <stdexcept>
+
 namespace ewellix_driver
 {
 
@@ -316,7 +318,7 @@ EwellixSerial::getCyclicObject2(std::vector<uint8_t> &data)
  * simultaneously sending a cycle command.
  *
  * @param[in] positions: remote/desired positions of actuators. Can pass an array
- * of at most size 6 corresponding to the maximum number of actuators.
+ * of at most MAX_ACTUATOR_COUNT corresponding to the maximum number of actuators.
  * @param[out] data: byte array with the current positions, remote positions, speeds, currents, and status of all actuators. And, the error code history.
  * @return true if successfully sent cycle command and retrieved data.
  */
@@ -329,7 +331,7 @@ EwellixSerial::cycle2(const std::vector<int> positions, std::vector<uint8_t> &da
 
   std::vector<uint8_t> write_data = {CyclicObject::OBJECT_2};
   this->appendIntegerVector(write_data, positions);
-  for(size_t i = positions.size(); i < 6; i++)
+  for(size_t i = positions.size(); i < MAX_ACTUATOR_COUNT; i++)
   {
     this->appendInteger(write_data, 0);
   }
@@ -339,7 +341,17 @@ EwellixSerial::cycle2(const std::vector<int> positions, std::vector<uint8_t> &da
   this->appendShort(parameters, size);
   this->appendVector(parameters, write_data);
 
-  return this->call(Command::CYCLIC, parameters, response, data);
+  if (!this->call(Command::CYCLIC, parameters, response, data))
+  {
+    return false;
+  }
+  if (data.size() != CYCLE2_DATA_SIZE)
+  {
+    std::cerr << "Invalid CyclicObject2 response size: " << data.size()
+              << ", expected " << CYCLE2_DATA_SIZE << std::endl;
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -482,7 +494,7 @@ EwellixSerial::send(const std::vector<uint8_t> message)
   // Lock
 
   // Check serial status
-  if(serial_->isOpen())
+  if(serial_ && serial_->isOpen())
   {
     try
     {
@@ -832,13 +844,26 @@ EwellixSerial::call(uint8_t command, const std::vector<uint8_t>parameters, std::
     return false;
   }
 
-  if(!this->send(message))
+  try
   {
+    if(!this->send(message) || !this->receive(message, response, data))
+    {
+      return false;
+    }
+  }
+  catch (const serial::IOException & error)
+  {
+    std::cerr << "Serial communication failed: " << error.what() << std::endl;
     return false;
   }
-
-  if(!this->receive(message, response, data))
+  catch (const serial::SerialException & error)
   {
+    std::cerr << "Serial communication failed: " << error.what() << std::endl;
+    return false;
+  }
+  catch (const serial::PortNotOpenedException & error)
+  {
+    std::cerr << "Serial communication failed: " << error.what() << std::endl;
     return false;
   }
 
@@ -1104,7 +1129,7 @@ EwellixSerial::Cycle2Data::Cycle2Data() :
   actual_positions({0, 0, 0, 0, 0, 0}), remote_positions({0, 0, 0, 0, 0, 0}),
   speeds({0, 0, 0, 0, 0, 0}), currents({0, 0, 0, 0, 0, 0}),
   status(std::vector<EwellixSerial::Status1>(6,EwellixSerial::Status1())),
-  errors(std::vector<EwellixSerial::SCUError>(6,EwellixSerial::SCUError()))
+  errors(std::vector<EwellixSerial::SCUError>(ERROR_HISTORY_COUNT,EwellixSerial::SCUError()))
 {
 }
 
@@ -1117,7 +1142,7 @@ EwellixSerial::Cycle2Data::Cycle2Data(const std::vector<uint8_t> data) :
   actual_positions({0, 0, 0, 0, 0, 0}), remote_positions({0, 0, 0, 0, 0, 0}),
   speeds({0, 0, 0, 0, 0, 0}), currents({0, 0, 0, 0, 0, 0}),
   status(std::vector<EwellixSerial::Status1>(6,EwellixSerial::Status1())),
-  errors(std::vector<EwellixSerial::SCUError>(6,EwellixSerial::SCUError()))
+  errors(std::vector<EwellixSerial::SCUError>(ERROR_HISTORY_COUNT,EwellixSerial::SCUError()))
 {
   this->setFromData(data);
 }
@@ -1130,8 +1155,11 @@ EwellixSerial::Cycle2Data::Cycle2Data(const std::vector<uint8_t> data) :
 void
 EwellixSerial::Cycle2Data::setFromData(const std::vector<uint8_t> data)
 {
-  assert(data.size() == 98);
-  for(int i = 0; i < 6; i++)
+  if (data.size() != CYCLE2_DATA_SIZE)
+  {
+    throw std::invalid_argument("Invalid CyclicObject2 response size.");
+  }
+  for(std::size_t i = 0; i < MAX_ACTUATOR_COUNT; i++)
   {
     actual_positions[i] = *reinterpret_cast<const int *>(&data[0 + i*sizeof(int)]);
     remote_positions[i] = *reinterpret_cast<const int *>(&data[24 + i*sizeof(int)]);
@@ -1139,7 +1167,7 @@ EwellixSerial::Cycle2Data::setFromData(const std::vector<uint8_t> data)
     currents[i] = *reinterpret_cast<const uint16_t *>(&data[60 + i*sizeof(uint16_t)]);
     status[i].setFromData({data[72 + i*sizeof(uint8_t)]});
   }
-  for(int i = 0; i < 6; i++)
+  for(std::size_t i = 0; i < ERROR_HISTORY_COUNT; i++)
   {
     errors[i].setFromData({
       data[78 + i*sizeof(int) + 0],
